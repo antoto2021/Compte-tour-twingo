@@ -8,7 +8,7 @@
     /* ====== CONFIGURATION ====== */
     :root {
       /* Tailles de police */
-      --font-size-line: 1.5rem;
+      --font-size-line: 1.7rem;
       --font-size-speed: 2rem;
       --font-size-gear: 1.8rem;
       --font-size-rpm: 2rem;
