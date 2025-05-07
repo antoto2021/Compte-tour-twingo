@@ -12,6 +12,7 @@
       --font-size-speed: 2rem;
       --font-size-gear: 1.8rem;
       --font-size-rpm: 2rem;
+	  .
       /* Couleurs */
       --color-bg: #f4f7fa;
       --color-center: #ffffff;
