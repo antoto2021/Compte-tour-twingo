@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"> <!-- Encodage UTF-8 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Responsive mobile -->
   <title>Compte-tour V3</title>
   <style>
     :root {
@@ -11,27 +11,27 @@
       --rpm-max-normal: 2100;
       --rpm-min-sport : 2000;
       --rpm-max-sport : 4000;
-	  
+
       /* Couleurs */
-      --bg-center   : #000;  /* couleur de fond par défaut du compte-tour */
-      --text-center : #fff;  /* couleur du texte par défaut du compte-tour */
+      --bg-center   : #000;
+      --text-center : #fff;
       --bg-history  : #e3f2fd;
       --text-history: #000;
       --bg-stats    : #e8f5e9;
       --text-stats  : #000;
-	  
+
       /* Tailles fluides (mobile first) */
       --font-base  : 4vw;
       --font-title : 8vw;
       --font-mode  : 5vw;
       --font-value : 10vw;
-	  
+
       /* Espacements */
-      --gap   : 2vw;
-      --pad   : 3vw;
-      --radius: 4vw;
+      --gap    : 2vw;
+      --pad    : 3vw;
+      --radius : 4vw;
     }
-    *,*::before,*::after { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
       margin:0;
       padding:var(--pad);
@@ -59,7 +59,7 @@
       border-radius:var(--radius);
       font-size:var(--font-base);
     }
-    /* Sections */
+    /* Sections communes */
     .section {
       display:none;
       padding:var(--pad);
@@ -114,15 +114,15 @@
       margin-top:var(--gap);
       font-size:var(--font-base);
     }
-    th,td {
+    th, td {
       border:1px solid #ccc;
       padding:calc(var(--pad)/2);
       text-align:center;
     }
     th { background:#bbdefb; }
 
-    /* Rebasage des tailles sur écrans >480px */
-    @media(min-width:480px){
+    /* Breakpoint desktop */
+    @media(min-width:480px) {
       :root {
         --font-base: 1rem;
         --font-title: 2.5rem;
@@ -139,7 +139,7 @@
   <div class="container">
     <h1>Compte-tour</h1>
 
-    <!-- Choix de section -->
+    <!-- Selecteur de section -->
     <select id="section-select">
       <option value="center">Compte-tour</option>
       <option value="history">Historique</option>
@@ -148,14 +148,11 @@
 
     <!-- SECTION COMPTE-TOUR -->
     <div id="center" class="section">
-      <!-- Boutons Normal/Sport -->
       <div id="modes">
         <button id="mode-normal" class="active">Normal</button>
         <button id="mode-sport">Sport</button>
       </div>
-      <!-- Rapport engagé -->
       <p id="gear-value" class="value">—</p>
-      <!-- Régime moteur -->
       <p id="rpm-value" class="value">— tr/min</p>
     </div>
 
@@ -165,9 +162,7 @@
       <button id="export-btn" style="font-size:var(--font-base); padding:var(--pad)">Exporter nouveaux trajets</button>
       <table id="history-table">
         <thead>
-          <tr>
-            <th>Date</th><th>Distance</th><th>Rég. moy</th><th>Rég. max</th><th>Vit. moy</th><th>Vit. max</th>
-          </tr>
+          <tr><th>Date</th><th>Distance</th><th>Rég. moy</th><th>Rég. max</th><th>Vit. moy</th><th>Vit. max</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -187,7 +182,7 @@
   </div>
 
   <script>
-    // Navigation entre sections
+    // --- Navigation entre sections ---
     const sections = {
       center:  document.getElementById('center'),
       history: document.getElementById('history'),
@@ -197,18 +192,18 @@
       Object.values(sections).forEach(s => s.style.display = 'none');
       sections[e.target.value].style.display = 'block';
     };
-    sections.center.style.display = 'block'; // affichage initial
+    sections.center.style.display = 'block';
 
-    // Gestion des modes Normal/Sport
+    // --- Mode Normal/Sport & initialisation ---
     const ranges = {
       normal: { min: 1000, max: 2100 },
       sport:  { min: 2000, max: 4000 }
     };
     let mode = 'normal';
-    const btnN    = document.getElementById('mode-normal');
-    const btnS    = document.getElementById('mode-sport');
-    const gearEl  = document.getElementById('gear-value');
-    const rpmEl   = document.getElementById('rpm-value');
+    const btnN   = document.getElementById('mode-normal');
+    const btnS   = document.getElementById('mode-sport');
+    const gearEl = document.getElementById('gear-value');
+    const rpmEl  = document.getElementById('rpm-value');
 
     function switchMode(m) {
       mode = m;
@@ -219,58 +214,78 @@
     btnS.onclick = () => switchMode('sport');
     switchMode('normal');
 
-    // Détermination du rapport et du régime
-    const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
+    // --- Variables de suivi trajet ---
+    let speedData = [], rpmData = [], shiftCount = 0, cumulativeDistance = 0;
+    let lastGear = null, historyArr = [], lastExport = 0;
+    const histBody = document.querySelector('#history-table tbody');
 
+    // --- Calcul des rapports/rpm ---
+    const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
     function determineGear(sp) {
-      if (sp < 3) return null; // <3 km/h on ne change pas
-      let best = 1, bestDelta = Infinity;
-      const {min, max} = ranges[mode];
-      for (let g = 1; g <= 5; g++) {
-        const r = sp * 1000 / v1000[g];
-        if (r >= min && r <= max) return g;
-        const delta = Math.min(Math.abs(r - min), Math.abs(r - max));
-        if (delta < bestDelta) { bestDelta = delta; best = g; }
+      if (sp < 3) return null;
+      let best=1, delta=Infinity, {min, max} = ranges[mode];
+      for (let g=1; g<=5; g++) {
+        const r = sp*1000/v1000[g];
+        if (r>=min && r<=max) return g;
+        const d = Math.min(Math.abs(r-min), Math.abs(r-max));
+        if (d<delta) { delta=d; best=g; }
       }
       return best;
     }
     function calcRpm(sp, g) {
-      if (sp < 3) return 900;      // régime par défaut bas régime
-      return Math.round(sp * 1000 / v1000[g]);
+      if (sp < 3) return 900;
+      return Math.round(sp*1000/v1000[g]);
     }
 
-    // Mise à jour de l’affichage
+    // --- Mise à jour temps réel ---
     function updateDisplay(sp) {
       const g = determineGear(sp);
+      const r = calcRpm(sp, g);
+      // affichage compte-tour
       gearEl.textContent = g != null ? g : '—';
-      rpmEl.textContent  = calcRpm(sp, g) + ' tr/min';
+      rpmEl.textContent  = r + ' tr/min';
+      // stocker
+      if (sp!=null) {
+        speedData.push(sp);
+        rpmData.push(r);
+        if (lastGear!=null && g!=null && g!== lastGear) shiftCount++;
+        lastGear = g;
+        cumulativeDistance += sp/3600; // km
+      }
+      // mettre à jour section Valeurs en temps réel
+      document.getElementById('max-rpm').textContent   = rpmData.length ? Math.max(...rpmData) : '—';
+      document.getElementById('avg-rpm').textContent   = rpmData.length ? Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length) : '—';
+      document.getElementById('max-speed').textContent = speedData.length ? Math.max(...speedData).toFixed(1) : '—';
+      document.getElementById('avg-speed').textContent = speedData.length ? (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1) : '—';
+      document.getElementById('distance').textContent  = cumulativeDistance.toFixed(2);
+      document.getElementById('shift-count').textContent = shiftCount;
     }
 
-    // Géolocalisation pour obtenir la vitesse
+    // --- Géolocalisation ---
     if ('geolocation' in navigator) {
       navigator.geolocation.watchPosition(pos => {
         let s = pos.coords.speed;
-        if (s != null) s *= 3.6;
+        if (s!=null) s *= 3.6;
         updateDisplay(s);
       }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
     } else {
       rpmEl.textContent = 'GPS non dispo';
     }
 
-    // Historique et export CSV
-    let historyArr = [], lastExport = 0;
-    const histBody = document.querySelector('#history-table tbody');
-
+    // --- Reset trajet (historique & stats) ---
     document.getElementById('reset-trip').onclick = () => {
-      const rpm = parseInt(rpmEl.textContent) || 0;
+      if (!rpmData.length) return;
       historyArr.push({
         date: new Date().toLocaleString(),
-        distance: '—',
-        avgRpm: rpm,
-        maxRpm: rpm,
-        avgSpeed: '—',
-        maxSpeed: '—'
+        distance: cumulativeDistance.toFixed(2),
+        avgRpm: Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length),
+        maxRpm: Math.max(...rpmData),
+        avgSpeed: (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1),
+        maxSpeed: Math.max(...speedData).toFixed(1)
       });
+      // réinitialiser
+      speedData = []; rpmData = []; shiftCount = 0; cumulativeDistance = 0; lastGear = null;
+      // réafficher historique
       histBody.innerHTML = '';
       historyArr.forEach(t => {
         const tr = document.createElement('tr');
@@ -281,16 +296,18 @@
       });
     };
 
+    // --- Export CSV intelligent ---
     document.getElementById('export-btn').onclick = () => {
-      const slice = historyArr.slice(lastExport);
-      if (!slice.length) { alert('Aucun nouveau trajet'); return; }
-      let csv = 'Date;Distance;avgRpm;maxRpm;avgSpeed;maxSpeed\n';
-      slice.forEach(t => {
+      const newTrips = historyArr.slice(lastExport);
+      if (!newTrips.length) { alert('Aucun nouveau trajet'); return; }
+      let csv = 'Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
+      newTrips.forEach(t => {
         csv += `${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`;
       });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'trajets.csv'; a.click();
+      const blob = new Blob([csv], { type:'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'trajets.csv'; a.click();
       URL.revokeObjectURL(url);
       lastExport = historyArr.length;
     };
