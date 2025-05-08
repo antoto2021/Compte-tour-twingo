@@ -1,9 +1,5 @@
 <!DOCTYPE html>
 <html lang="fr">
-touch .nojekyll
-git add .nojekyll
-git commit -m "Désactiver Jekyll"
-git push
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
