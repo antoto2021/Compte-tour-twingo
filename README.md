@@ -11,18 +11,21 @@
       --rpm-max-normal: 2100;
       --rpm-min-sport : 2000;
       --rpm-max-sport : 4000;
+	  
       /* Couleurs */
-      --bg-center   : #000;
-      --text-center : #fff;
+      --bg-center   : #000;  /* couleur de fond par défaut du compte-tour */
+      --text-center : #fff;  /* couleur du texte par défaut du compte-tour */
       --bg-history  : #e3f2fd;
       --text-history: #000;
       --bg-stats    : #e8f5e9;
       --text-stats  : #000;
+	  
       /* Tailles fluides (mobile first) */
       --font-base  : 4vw;
       --font-title : 8vw;
       --font-mode  : 5vw;
       --font-value : 10vw;
+	  
       /* Espacements */
       --gap   : 2vw;
       --pad   : 3vw;
