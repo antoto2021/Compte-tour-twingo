@@ -8,7 +8,7 @@
     :root {
       /* Plages RPM fixes */
       --rpm-min-normal: 1000;
-      --rpm-max-normal: 2100;
+      --rpm-max-normal: 2150;
       --rpm-min-sport : 2000;
       --rpm-max-sport : 4000;
 
@@ -124,10 +124,10 @@
     /* Breakpoint desktop */
     @media(min-width:480px) {
       :root {
-        --font-base: 1rem;
+        --font-base: 1.2rem;
         --font-title: 2.5rem;
-        --font-mode: 1.5rem;
-        --font-value: 3rem;
+        --font-mode: 1.7rem;
+        --font-value: 4rem;
         --gap: 1rem;
         --pad: 0.5rem;
         --radius: 8px;
@@ -222,7 +222,7 @@
     // --- Calcul des rapports/rpm ---
     const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
     function determineGear(sp) {
-      if (sp < 3) return null;
+      if (sp < 6) return null;
       let best=1, delta=Infinity, {min, max} = ranges[mode];
       for (let g=1; g<=5; g++) {
         const r = sp*1000/v1000[g];
@@ -233,7 +233,7 @@
       return best;
     }
     function calcRpm(sp, g) {
-      if (sp < 3) return 900;
+      if (sp < 6) return 900;
       return Math.round(sp*1000/v1000[g]);
     }
 
