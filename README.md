@@ -27,7 +27,7 @@
       --font-title     : 5vw;
       --font-mode      : 4vw;
       --font-value     : 13vw;
-      --font-stats-val : 8vw; /* taille section Valeurs */
+      --font-stats-val : 6.2vw; /* taille section Valeurs */
 
       /* Espacements */
       --gap    : 1.7vw;
@@ -127,7 +127,7 @@
       border: 1px solid #ccc;
       padding: calc(var(--pad)/2);
       text-align: center;
-      color: var(--text-page) !important; /* blanc */
+      color: var(#fff) !important; /* blanc */
     }
     th { background: #bbdefb; color: #000; }
     /* Section Valeurs: taille indépendante */
@@ -175,7 +175,6 @@
 
     <!-- SECTION HISTORIQUE -->
     <div id="history" class="section">
-      <h2>Historique des trajets</h2>
       <button id="export-btn" style="font-size:var(--font-base); padding:var(--pad)">Exporter nouveaux trajets</button>
       <table id="history-table">
         <thead>
@@ -187,7 +186,6 @@
 
     <!-- SECTION VALEURS -->
     <div id="stats" class="section">
-      <h2>Valeurs du trajet</h2>
       <p>Régime max   : <span id="max-rpm">—</span> tr/min</p>
       <p>Régime moyen : <span id="avg-rpm">—</span> tr/min</p>
       <p>Vitesse max  : <span id="max-speed">—</span> km/h</p>
