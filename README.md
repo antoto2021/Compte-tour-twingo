@@ -9,8 +9,8 @@
       /* Plages RPM fixes */
       --rpm-min-normal: 1000;
       --rpm-max-normal: 2150;
-      --rpm-min-sport : 2000;
-      --rpm-max-sport : 4000;
+      --rpm-min-sport : 1800;
+      --rpm-max-sport : 3500;
 
       /* Couleurs */
       --bg-center   : #000;
@@ -21,10 +21,10 @@
       --text-stats  : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base  : 4vw;
+      --font-base  : 5vw;
       --font-title : 8vw;
       --font-mode  : 5vw;
-      --font-value : 10vw;
+      --font-value : 15vw;
 
       /* Espacements */
       --gap    : 2vw;
@@ -124,10 +124,10 @@
     /* Breakpoint desktop */
     @media(min-width:480px) {
       :root {
-        --font-base: 1.2rem;
+        --font-base: 1.5rem;
         --font-title: 2.5rem;
         --font-mode: 1.7rem;
-        --font-value: 4rem;
+        --font-value: 5rem;
         --gap: 1rem;
         --pad: 0.5rem;
         --radius: 8px;
@@ -196,8 +196,8 @@
 
     // --- Mode Normal/Sport & initialisation ---
     const ranges = {
-      normal: { min: 1000, max: 2100 },
-      sport:  { min: 2000, max: 4000 }
+      normal: { min: 1000, max: 2150 },
+      sport:  { min: 1800, max: 3500 }
     };
     let mode = 'normal';
     const btnN   = document.getElementById('mode-normal');
