@@ -18,9 +18,9 @@
       --bg-center    : #000;
       --text-center  : #fff;
       --bg-history   : #e3f2fd;
-      --text-history : #000;
+      --text-history : #fff;
       --bg-stats     : #e8f5e9;
-      --text-stats   : #000;
+      --text-stats   : #fff;
 
       /* Tailles fluides (mobile first) */
       --font-base      : 6vw;
