@@ -21,7 +21,7 @@
       --text-stats  : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base  : 4vw;
+      --font-base  : 5vw;
       --font-title : 6vw;
       --font-mode  : 5vw;
       --font-value : 13vw;
