@@ -18,16 +18,16 @@
       --bg-center    : #000;
       --text-center  : #fff;
       --bg-history   : #e3f2fd;
-      --text-history : #fff;
+      --text-history : #000;
       --bg-stats     : #e8f5e9;
-      --text-stats   : #fff;
+      --text-stats   : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base      : 6vw;
-      --font-title     : 7vw;
-      --font-mode      : 6vw;
-      --font-value     : 15vw;
-      --font-stats-val : 18vw; /* taille section Valeurs */
+      --font-base      : 5vw;
+      --font-title     : 6vw;
+      --font-mode      : 5vw;
+      --font-value     : 13vw;
+      --font-stats-val : 13vw; /* taille section Valeurs */
 
       /* Espacements */
       --gap    : 1.7vw;
@@ -90,6 +90,7 @@
       font-size: var(--font-value);
       text-align: center;
       margin: var(--gap) 0;
+      color: var(--text-center) !important; /* blanc */
     }
     /* Boutons mode uniquement dans Compte-tour */
     #center #modes {
@@ -126,15 +127,16 @@
       border: 1px solid #ccc;
       padding: calc(var(--pad)/2);
       text-align: center;
+      color: var(--text-page) !important; /* blanc */
     }
     th { background: #bbdefb; color: #000; }
     /* Section Valeurs: taille indépendante */
     #stats p {
       font-size: var(--font-stats-val);
       margin: calc(var(--gap)/2) 0;
-      color: var(--text-page); /* texte blanc */
+      color: var(--text-page) !important; /* blanc */
     }
-    #stats p span { color: var(--text-page); }
+    #stats p span { color: var(--text-page) !important; }
     /* Breakpoint desktop */
     @media(min-width:480px) {
       :root {
@@ -232,24 +234,95 @@
     const ranges = { normal:{min:950,max:2150}, sport:{min:1800,max:3500} };
     let mode='normal';
     const btnN=document.getElementById('mode-normal'), btnS=document.getElementById('mode-sport'), gearEl=document.getElementById('gear-value'), rpmEl=document.getElementById('rpm-value');
-    function switchMode(m){ mode=m; btnN.classList.toggle('active',m==='normal'); btnS.classList.toggle('active',m==='sport'); }
-    btnN.onclick=()=>switchMode('normal'); btnS.onclick=()=>switchMode('sport'); switchMode('normal');
+function switchMode(m) {
+      mode = m;
+      btnN.classList.toggle('active', m === 'normal');
+      btnS.classList.toggle('active', m === 'sport');
+    }
+    btnN.onclick = () => switchMode('normal');
+    btnS.onclick = () => switchMode('sport');
+    switchMode('normal');
 
-    // Variables trajet
-    let speedData=[], rpmData=[], shiftCount=0, cumulativeDistance=0, lastGear=null;
-    const v1000={1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
-    function determineGear(sp){ if(sp<6) return null; let best=1,delta=Infinity,{min,max}=ranges[mode]; for(let g=1;g<=5;g++){const r=sp*1000/v1000[g]; if(r>=min&&r<=max) return g; const d=Math.min(Math.abs(r-min),Math.abs(r-max)); if(d<delta){delta=d;best=g;}} return best; }
-    function calcRpm(sp,g){ return sp<6?900:Math.round(sp*1000/v1000[g]); }
-    function updateDisplay(sp){ const g=determineGear(sp), r=calcRpm(sp,g); gearEl.textContent=g!=null?g:'—'; rpmEl.textContent=r+' tr/min'; if(sp!=null){ speedData.push(sp); rpmData.push(r); if(lastGear!=null&&g!=null&&g!==lastGear) shiftCount++; lastGear=g; cumulativeDistance+=sp/3600;} document.getElementById('max-rpm').textContent=rpmData.length?Math.max(...rpmData):'—'; document.getElementById('avg-rpm').textContent=rpmData.length?Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length):'—'; document.getElementById('max-speed').textContent=speedData.length?Math.max(...speedData).toFixed(1):'—'; document.getElementById('avg-speed').textContent=speedData.length?(speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1):'—'; document.getElementById('distance').textContent=cumulativeDistance.toFixed(2); document.getElementById('shift-count').textContent=shiftCount; }
-    if('geolocation'in navigator){ navigator.geolocation.watchPosition(pos=>{let s=pos.coords.speed; if(s!=null)s*=3.6; updateDisplay(s);},console.error,{enableHighAccuracy:true,maximumAge:500,timeout:5000}); } else { rpmEl.textContent='GPS non dispo'; }
+    // --- Variables de suivi trajet ---
+    let speedData = [], rpmData = [], shiftCount = 0, cumulativeDistance = 0;
+    let lastGear = null;
 
-    // Reset trajet
-    document.getElementById('reset-trip').onclick=()=>{ if(!rpmData.length) return; historyArr.push({date:new Date().toLocaleString(),distance:cumulativeDistance.toFixed(2),avgRpm:Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length),maxRpm:Math.max(...rpmData),avgSpeed:(speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1),maxSpeed:Math.max(...speedData).toFixed(1)}); localStorage.setItem('trajets',JSON.stringify(historyArr)); speedData=[];rpmData=[];shiftCount=0;cumulativeDistance=0;lastGear=null; renderHistory(); };
+    // --- Calcul des rapports/rpm ---
+    const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
+    function determineGear(sp) {
+      if (sp < 6) return null;
+      let best=1, delta=Infinity, {min, max} = ranges[mode];
+      for (let g=1; g<=5; g++) {
+        const r = sp*1000/v1000[g];
+        if (r>=min && r<=max) return g;
+        const d = Math.min(Math.abs(r-min), Math.abs(r-max));
+        if (d<delta) { delta=d; best=g; }
+      }
+      return best;
+    }
+    function calcRpm(sp, g) {
+      if (sp < 6) return 900;
+      return Math.round(sp*1000/v1000[g]);
+    }
 
-    // Export CSV
-    document.getElementById('export-btn').onclick=()=>{ const newTrips=historyArr.slice(lastExport); if(!newTrips.length){alert('Aucun nouveau trajet');return;} let csv='Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max
-'; newTrips.forEach(t=>{csv+=`${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}
-`;}); const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download='trajets.csv';a.click();URL.revokeObjectURL(url); lastExport=historyArr.length; };
+    // --- Mise à jour temps réel ---
+    function updateDisplay(sp) {
+      const g = determineGear(sp); const r = calcRpm(sp, g);
+      gearEl.textContent = g != null ? g : '—';
+      rpmEl.textContent  = r + ' tr/min';
+      if (sp!=null) {
+        speedData.push(sp); rpmData.push(r);
+        if (lastGear!=null && g!=null && g!== lastGear) shiftCount++;
+        lastGear = g;
+        cumulativeDistance += sp/3600;
+      }
+      // mettre à jour section Valeurs
+      document.getElementById('max-rpm').textContent   = rpmData.length ? Math.max(...rpmData) : '—';
+      document.getElementById('avg-rpm').textContent   = rpmData.length ? Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length) : '—';
+      document.getElementById('max-speed').textContent = speedData.length ? Math.max(...speedData).toFixed(1) : '—';
+      document.getElementById('avg-speed').textContent = speedData.length ? (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1) : '—';
+      document.getElementById('distance').textContent  = cumulativeDistance.toFixed(2);
+      document.getElementById('shift-count').textContent = shiftCount;
+    }
+
+    // --- Géolocalisation ---
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition(pos => {
+        let s = pos.coords.speed; if (s!=null) s*=3.6; updateDisplay(s);
+      }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
+    } else {
+      rpmEl.textContent = 'GPS non dispo';
+    }
+
+    // --- Reset trajet (historique & stats) ---
+    document.getElementById('reset-trip').onclick = () => {
+      if (!rpmData.length) return;
+      historyArr.push({
+        date: new Date().toLocaleString(),
+        distance: cumulativeDistance.toFixed(2),
+        avgRpm: Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length),
+        maxRpm: Math.max(...rpmData),
+        avgSpeed: (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1),
+        maxSpeed: Math.max(...speedData).toFixed(1)
+      });
+      // sauvegarde locale
+      localStorage.setItem('trajets', JSON.stringify(historyArr));
+      // réinitialiser données trajet
+      speedData = []; rpmData = []; shiftCount = 0; cumulativeDistance = 0; lastGear = null;
+      renderHistory();
+    };
+
+    // --- Export CSV intelligent ---
+    document.getElementById('export-btn').onclick = () => {
+      const newTrips = historyArr.slice(lastExport);
+      if (!newTrips.length) { alert('Aucun nouveau trajet'); return; }
+      let csv = 'Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
+      newTrips.forEach(t => { csv += `${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`; });
+      const blob = new Blob([csv], { type:'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a'); a.href = url; a.download = 'trajets.csv'; a.click(); URL.revokeObjectURL(url);
+      lastExport = historyArr.length;
+    };
   </script>
 </body>
 </html>
