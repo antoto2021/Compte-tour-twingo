@@ -17,17 +17,17 @@
       --text-page    : #fff; /* texte global */
       --bg-center    : #000;
       --text-center  : #fff;
-      --bg-history   : #e3f2fd;
+      --bg-history   : #fff;
       --text-history : #000;
-      --bg-stats     : #e8f5e9;
+      --bg-stats     : #fff;
       --text-stats   : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base      : 5vw;
-      --font-title     : 6vw;
-      --font-mode      : 5vw;
+      --font-base      : 4vw;
+      --font-title     : 5vw;
+      --font-mode      : 4vw;
       --font-value     : 13vw;
-      --font-stats-val : 13vw; /* taille section Valeurs */
+      --font-stats-val : 8vw; /* taille section Valeurs */
 
       /* Espacements */
       --gap    : 1.7vw;
