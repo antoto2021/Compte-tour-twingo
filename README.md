@@ -17,9 +17,9 @@
       --text-page    : #fff; /* texte global */
       --bg-center    : #000;
       --text-center  : #fff;
-      --bg-history   : #fff;
+      --bg-history   : #000;
       --text-history : #000;
-      --bg-stats     : #fff;
+      --bg-stats     : #000;
       --text-stats   : #000;
 
       /* Tailles fluides (mobile first) */
