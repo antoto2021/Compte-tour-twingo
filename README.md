@@ -25,6 +25,7 @@
       --font-title : 6vw;
       --font-mode  : 5vw;
       --font-value : 13vw;
+	  --font-stats-val : 10vw; /* <--- taille spécifique pour section "Valeurs" */
 
       /* Espacements */
       --gap    : 1.7vw;
@@ -120,6 +121,11 @@
       text-align:center;
     }
     th { background:#bbdefb; }
+	    /* Section Valeurs: taille indépendante */
+    #stats p {
+      font-size: var(--font-stats-val);
+      margin: calc(var(--gap)/2) 0;
+    }
 
     /* Breakpoint desktop */
     @media(min-width:480px) {
@@ -128,6 +134,7 @@
         --font-title: 2.5rem;
         --font-mode: 1.7rem;
         --font-value: 5rem;
+		--font-stats-val : 5rem; /* taille desktop pour stats */
         --gap: 1rem;
         --pad: 0.5rem;
         --radius: 8px;
