@@ -23,11 +23,11 @@
       --text-stats   : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base      : 5vw;
-      --font-title     : 6vw;
-      --font-mode      : 5vw;
+      --font-base      : 4vw;
+      --font-title     : 5vw;
+      --font-mode      : 4vw;
       --font-value     : 13vw;
-      --font-stats-val : 13vw; /* taille section Valeurs */
+      --font-stats-val : 8vw; /* taille section Valeurs */
 
       /* Espacements */
       --gap    : 1.7vw;
@@ -78,12 +78,12 @@
       color: var(--text-center);
     }
     #history {
-      background: var(--bg-page);
-      color: var(--text-page);
+      background: var(--bg-history);
+      color: var(--text-history);
     }
     #stats {
-      background: var(--bg-page);
-      color: var(--text-page);
+      background: var(--bg-stats);
+      color: var(--text-stats);
     }
     /* Contenu Compte-tour */
     #center .value {
@@ -129,7 +129,7 @@
       text-align: center;
       color: var(--text-page) !important; /* blanc */
     }
-    th { background: var(--bg-page); color: var(--text-page) !important; }
+    th { background: #bbdefb; color: #000; }
     /* Section Valeurs: taille indépendante */
     #stats p {
       font-size: var(--font-stats-val);
@@ -234,7 +234,7 @@
     const ranges = { normal:{min:950,max:2150}, sport:{min:1800,max:3500} };
     let mode='normal';
     const btnN=document.getElementById('mode-normal'), btnS=document.getElementById('mode-sport'), gearEl=document.getElementById('gear-value'), rpmEl=document.getElementById('rpm-value');
-    function switchMode(m) {
+function switchMode(m) {
       mode = m;
       btnN.classList.toggle('active', m === 'normal');
       btnS.classList.toggle('active', m === 'sport');
@@ -326,4 +326,3 @@
   </script>
 </body>
 </html>
-
