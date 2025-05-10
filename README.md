@@ -182,6 +182,28 @@
   </div>
 
   <script>
+    // --- Charger l'historique depuis localStorage ---
+    let historyArr = [];
+    const saved = localStorage.getItem('trajets');
+    if (saved) {
+      historyArr = JSON.parse(saved);
+    }
+
+    // --- Rendu de l'historique à l'écran ---
+    const histBody = document.querySelector('#history-table tbody');
+    function renderHistory() {
+      histBody.innerHTML = '';
+      historyArr.forEach(t => {
+        const tr = document.createElement('tr');
+        ['date','distance','avgRpm','maxRpm','avgSpeed','maxSpeed'].forEach(k => {
+          const td = document.createElement('td'); td.textContent = t[k]; tr.appendChild(td);
+        });
+        histBody.appendChild(tr);
+      });
+    }
+    renderHistory();
+    let lastExport = historyArr.length;
+
     // --- Navigation entre sections ---
     const sections = {
       center:  document.getElementById('center'),
@@ -196,7 +218,7 @@
 
     // --- Mode Normal/Sport & initialisation ---
     const ranges = {
-      normal: { min: 950, max: 2150 },
+      normal: { min: 950,  max: 2150 },
       sport:  { min: 1800, max: 3500 }
     };
     let mode = 'normal';
@@ -216,8 +238,7 @@
 
     // --- Variables de suivi trajet ---
     let speedData = [], rpmData = [], shiftCount = 0, cumulativeDistance = 0;
-    let lastGear = null, historyArr = [], lastExport = 0;
-    const histBody = document.querySelector('#history-table tbody');
+    let lastGear = null;
 
     // --- Calcul des rapports/rpm ---
     const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
@@ -239,20 +260,16 @@
 
     // --- Mise à jour temps réel ---
     function updateDisplay(sp) {
-      const g = determineGear(sp);
-      const r = calcRpm(sp, g);
-      // affichage compte-tour
+      const g = determineGear(sp); const r = calcRpm(sp, g);
       gearEl.textContent = g != null ? g : '—';
       rpmEl.textContent  = r + ' tr/min';
-      // stocker
       if (sp!=null) {
-        speedData.push(sp);
-        rpmData.push(r);
+        speedData.push(sp); rpmData.push(r);
         if (lastGear!=null && g!=null && g!== lastGear) shiftCount++;
         lastGear = g;
-        cumulativeDistance += sp/3600; // km
+        cumulativeDistance += sp/3600;
       }
-      // mettre à jour section Valeurs en temps réel
+      // mettre à jour section Valeurs
       document.getElementById('max-rpm').textContent   = rpmData.length ? Math.max(...rpmData) : '—';
       document.getElementById('avg-rpm').textContent   = rpmData.length ? Math.round(rpmData.reduce((a,b)=>a+b,0)/rpmData.length) : '—';
       document.getElementById('max-speed').textContent = speedData.length ? Math.max(...speedData).toFixed(1) : '—';
@@ -264,9 +281,7 @@
     // --- Géolocalisation ---
     if ('geolocation' in navigator) {
       navigator.geolocation.watchPosition(pos => {
-        let s = pos.coords.speed;
-        if (s!=null) s *= 3.6;
-        updateDisplay(s);
+        let s = pos.coords.speed; if (s!=null) s*=3.6; updateDisplay(s);
       }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
     } else {
       rpmEl.textContent = 'GPS non dispo';
@@ -283,17 +298,11 @@
         avgSpeed: (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1),
         maxSpeed: Math.max(...speedData).toFixed(1)
       });
-      // réinitialiser
+      // sauvegarde locale
+      localStorage.setItem('trajets', JSON.stringify(historyArr));
+      // réinitialiser données trajet
       speedData = []; rpmData = []; shiftCount = 0; cumulativeDistance = 0; lastGear = null;
-      // réafficher historique
-      histBody.innerHTML = '';
-      historyArr.forEach(t => {
-        const tr = document.createElement('tr');
-        ['date','distance','avgRpm','maxRpm','avgSpeed','maxSpeed'].forEach(k => {
-          const td = document.createElement('td'); td.textContent = t[k]; tr.appendChild(td);
-        });
-        histBody.appendChild(tr);
-      });
+      renderHistory();
     };
 
     // --- Export CSV intelligent ---
@@ -301,14 +310,10 @@
       const newTrips = historyArr.slice(lastExport);
       if (!newTrips.length) { alert('Aucun nouveau trajet'); return; }
       let csv = 'Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
-      newTrips.forEach(t => {
-        csv += `${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`;
-      });
+      newTrips.forEach(t => { csv += `${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`; });
       const blob = new Blob([csv], { type:'text/csv' });
       const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = 'trajets.csv'; a.click();
-      URL.revokeObjectURL(url);
+      const a    = document.createElement('a'); a.href = url; a.download = 'trajets.csv'; a.click(); URL.revokeObjectURL(url);
       lastExport = historyArr.length;
     };
   </script>
