@@ -7,7 +7,7 @@
   <style>
     :root {
       /* Plages RPM fixes */
-      --rpm-min-normal: 1000;
+      --rpm-min-normal: 950;
       --rpm-max-normal: 2150;
       --rpm-min-sport : 1800;
       --rpm-max-sport : 3500;
@@ -196,7 +196,7 @@
 
     // --- Mode Normal/Sport & initialisation ---
     const ranges = {
-      normal: { min: 1000, max: 2150 },
+      normal: { min: 950, max: 2150 },
       sport:  { min: 1800, max: 3500 }
     };
     let mode = 'normal';
