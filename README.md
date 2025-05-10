@@ -21,14 +21,14 @@
       --text-stats  : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base  : 5vw;
-      --font-title : 8vw;
+      --font-base  : 4vw;
+      --font-title : 6vw;
       --font-mode  : 5vw;
-      --font-value : 15vw;
+      --font-value : 13vw;
 
       /* Espacements */
-      --gap    : 2vw;
-      --pad    : 3vw;
+      --gap    : 1.7vw;
+      --pad    : 2.7vw;
       --radius : 4vw;
     }
     *, *::before, *::after { box-sizing: border-box; }
