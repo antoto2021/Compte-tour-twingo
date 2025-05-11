@@ -23,10 +23,10 @@
       --text-stats   : #000;
 
       /* Tailles fluides (mobile first) */
-      --font-base      : 4vw;
+      --font-base      : 3.5vw;
       --font-title     : 5vw;
       --font-mode      : 4vw;
-      --font-value     : 13vw;
+      --font-value     : 14vw;
       --font-stats-val : 6.5vw; /* taille section Valeurs */
 
       /* Espacements */
@@ -248,7 +248,7 @@ function switchMode(m) {
     // --- Calcul des rapports/rpm ---
     const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
     function determineGear(sp) {
-      if (sp < 6) return null;
+      if (sp < 7) return null;
       let best=1, delta=Infinity, {min, max} = ranges[mode];
       for (let g=1; g<=5; g++) {
         const r = sp*1000/v1000[g];
@@ -259,7 +259,7 @@ function switchMode(m) {
       return best;
     }
     function calcRpm(sp, g) {
-      if (sp < 6) return 900;
+      if (sp < 7) return 900;
       return Math.round(sp*1000/v1000[g]);
     }
 
