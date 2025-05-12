@@ -262,8 +262,8 @@
     } else {
       rpmEl.textContent = 'GPS non dispo';
     }
-
-    // Reset trajet
+                                          
+    // --- Reset trajet (historique & stats) ---
     document.getElementById('reset-trip').onclick = () => {
       if (!rpmData.length) return;
       historyArr.push({
@@ -274,15 +274,24 @@
         avgSpeed: (speedData.reduce((a,b)=>a+b,0)/speedData.length).toFixed(1),
         maxSpeed: Math.max(...speedData).toFixed(1)
       });
+      // sauvegarde locale
       localStorage.setItem('trajets', JSON.stringify(historyArr));
-      speedData=[]; rpmData=[]; shiftCount=0; cumulativeDistance=0; lastGear=null;
+      // réinitialiser données trajet
+      speedData = []; rpmData = []; shiftCount = 0; cumulativeDistance = 0; lastGear = null;
       renderHistory();
     };
 
-    // Export CSV
+    // --- Export CSV intelligent ---
     document.getElementById('export-btn').onclick = () => {
       const newTrips = historyArr.slice(lastExport);
       if (!newTrips.length) { alert('Aucun nouveau trajet'); return; }
       let csv = 'Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
-      newTrips.forEach(t => {
-        csv += `${t.date};${t.distance};${t.avg
+      newTrips.forEach(t => { csv += `${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`; });
+      const blob = new Blob([csv], { type:'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a'); a.href = url; a.download = 'trajets.csv'; a.click(); URL.revokeObjectURL(url);
+      lastExport = historyArr.length;
+    };
+  </script>
+</body>
+</html>
