@@ -7,7 +7,7 @@
   <style>
     :root {
       /* Seuils d’hystérésis */
-      --rpm-down-normal: 1200;   /* seuil rétrograde normal */
+      --rpm-down-normal: 1300;   /* seuil rétrograde normal */
       --rpm-up-normal:   2150;   /* seuil passage supérieur normal */
       --rpm-down-sport:  2500;   /* seuil rétrograde sport */
       --rpm-up-sport:    3500;   /* seuil passage supérieur sport */
@@ -198,7 +198,7 @@
     sections.center.style.display = 'block';
 
     // Config modes et seuils
-    const ranges = { normal:{down:1200,up:2150}, sport:{down:1800,up:3500} };
+    const ranges = { normal:{down:1300,up:2150}, sport:{down:1800,up:3500} };
     let mode = 'normal';
     let lastGear = null;
     const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
