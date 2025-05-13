@@ -216,11 +216,29 @@
 
     // Géolocalisation
     if ('geolocation' in navigator) {
+      // 1) watchPosition pour capter les mises à jour OS
       navigator.geolocation.watchPosition(pos => {
         let s = pos.coords.speed;
         if (s != null) s *= 3.6;
         updateDisplay(s);
-      }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
+      }, console.error, {
+        enableHighAccuracy: true,
+        maximumAge: 0,     // aucune mesure en cache
+        timeout: 5000
+      });
+    
+      // 2) Polling régulier toutes les 200 ms
+      setInterval(() => {
+        navigator.geolocation.getCurrentPosition(pos => {
+          let s = pos.coords.speed;
+          if (s != null) s *= 3.6;
+          updateDisplay(s);
+        }, () => {/* on ignore l'erreur */}, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 2000
+        });
+      }, 200);
     } else {
       rpmEl.textContent = 'GPS non dispo';
     }
