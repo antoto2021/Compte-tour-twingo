@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Compte-tour V5</title>
+  <title>Compte-tour V6</title>
   <style>
     :root {
       /* Seuils par rapport (en tr/min) */
@@ -51,13 +51,7 @@
       --radius : 4vw;
     }
     *, *::before, *::after { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow-x: hidden;
-    }
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow-x:hidden; }
     body {
       padding: var(--pad);
       font-family: Arial, sans-serif;
@@ -66,88 +60,32 @@
       font-size: var(--font-base);
       line-height: 1.2;
     }
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: var(--gap);
-      width: 100%;
-    }
-    h1 { margin: 0; text-align: center; font-size: var(--font-title); }
+    .container { display:flex; flex-direction:column; gap:var(--gap); width:100%; }
+    h1 { margin:0; text-align:center; font-size:var(--font-title); }
     #section-select {
-      width: 100%;
-      padding: var(--pad);
-      font-size: var(--font-base);
-      border-radius: var(--radius);
-      border: 1px solid #ccc;
-      background: #fff;
-      color: #000;
+      width:100%; padding:var(--pad); font-size:var(--font-base);
+      border-radius:var(--radius); border:1px solid #ccc;
+      background:#fff; color:#000;
     }
-    .section {
-      display: none;
-      padding: var(--pad);
-      border-radius: var(--radius);
-      background: #111;
-    }
-    #center { background: var(--bg-center); color: var(--text-center); }
-    #history { background: var(--bg-history); color: var(--text-history); }
-    #stats   { background: var(--bg-stats);   color: var(--text-stats);   }
+    .section { display:none; padding:var(--pad); border-radius:var(--radius); background:#111; }
+    #center { background:var(--bg-center); color:var(--text-center); }
+    #history { background:var(--bg-history); color:var(--text-history); }
+    #stats   { background:var(--bg-stats);   color:var(--text-stats);   }
 
-    #center .value {
-      font-size: var(--font-value);
-      text-align: center;
-      margin: var(--gap) 0;
-    }
-    #center #modes {
-      display: flex;
-      justify-content: center;
-      gap: var(--gap);
-      flex-wrap: wrap;
-    }
+    #center .value { font-size:var(--font-value); text-align:center; margin:var(--gap) 0; }
+    #center #modes { display:flex; justify-content:center; gap:var(--gap); flex-wrap:wrap; }
     #center #modes button {
-      flex: 1 1 40%;
-      padding: var(--pad);
-      font-size: var(--font-mode);
-      border: none;
-      border-radius: var(--radius);
-      background: #ccc;
-      color: #000;
-      cursor: pointer;
-      transition: background .2s;
-      min-width: 40%;
+      flex:1 1 40%; padding:var(--pad); font-size:var(--font-mode);
+      border:none; border-radius:var(--radius); background:#ccc;
+      color:#000; cursor:pointer; transition:background .2s; min-width:40%;
     }
-    #center #modes button.active {
-      background: var(--bg-center);
-      color: var(--text-center);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: var(--gap);
-      font-size: var(--font-base);
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: calc(var(--pad)/2);
-      text-align: center;
-    }
-    th { background: #222; color: #fff; }
-    #stats p {
-      font-size: var(--font-stats-val);
-      margin: calc(var(--gap)/2) 0;
-    }
-    #stats p span { font-weight: bold; }
-    @media (min-width: 480px) {
-      :root {
-        --font-base      : 1.5rem;
-        --font-title     : 2.5rem;
-        --font-mode      : 1.7rem;
-        --font-value     : 5rem;
-        --font-stats-val : 2rem;
-        --gap            : 1rem;
-        --pad            : 0.5rem;
-        --radius         : 8px;
-      }
-    }
+    #center #modes button.active { background:var(--bg-center); color:var(--text-center); }
+    table { width:100%; border-collapse:collapse; margin-top:var(--gap); font-size:var(--font-base); }
+    th, td { border:1px solid #ccc; padding:calc(var(--pad)/2); text-align:center; }
+    th { background:#222; color:#fff; }
+    #stats p { font-size:var(--font-stats-val); margin:calc(var(--gap)/2) 0; }
+    #stats p span { font-weight:bold; }
+    @media(min-width:480px){ :root{ --font-base:1.5rem; --font-title:2.5rem; --font-mode:1.7rem; --font-value:5rem; --font-stats-val:2rem; --gap:1rem; --pad:0.5rem; --radius:8px; } }
   </style>
 </head>
 <body>
@@ -171,7 +109,11 @@
     <div id="history" class="section">
       <button id="export-btn">Exporter trajets</button>
       <table id="history-table">
-        <thead><tr><th>Date</th><th>Dist. (km)</th><th>Rég. moy</th><th>Rég. max</th><th>Vit. moy</th><th>Vit. max</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Date</th><th>Dist. (km)</th><th>Durée</th><th>Rég. moy</th><th>Rég. max</th><th>Vit. moy</th><th>Vit. max</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -195,20 +137,22 @@
       histBody.innerHTML = '';
       historyArr.forEach(t => {
         const tr = document.createElement('tr');
-        ['date','distance','avgRpm','maxRpm','avgSpeed','maxSpeed'].forEach(k => {
+        ['date','distance','duration','avgRpm','maxRpm','avgSpeed','maxSpeed'].forEach(k => {
           const td = document.createElement('td'); td.textContent = t[k]; tr.appendChild(td);
         });
         histBody.appendChild(tr);
       });
     }
     renderHistory();
-    let lastExport = historyArr.length;
+
+    // Suivi du dernier export
+    let lastExport = parseInt(localStorage.getItem('lastExport') || '0', 10);
 
     // Navigation
     const sections = { center:document.getElementById('center'), history:document.getElementById('history'), stats:document.getElementById('stats') };
     document.getElementById('section-select').onchange = e => {
-      Object.values(sections).forEach(s=>s.style.display='none');
-      sections[e.target.value].style.display='block';
+      Object.values(sections).forEach(s => s.style.display = 'none');
+      sections[e.target.value].style.display = 'block';
     };
     sections.center.style.display = 'block';
 
@@ -226,68 +170,99 @@
     }
 
     // État global
-    let mode='normal', thresholds=loadThresholds('normal'), lastGear=null;
-    const btnN=document.getElementById('mode-normal'), btnS=document.getElementById('mode-sport');
-    btnN.onclick = () => { mode='normal'; thresholds=loadThresholds(mode); lastGear=null; toggleButtons(); };
-    btnS.onclick = () => { mode='sport';  thresholds=loadThresholds(mode); lastGear=null; toggleButtons(); };
+    let mode = 'normal', thresholds = loadThresholds('normal'), lastGear = null;
+    const btnN = document.getElementById('mode-normal'), btnS = document.getElementById('mode-sport');
+    btnN.onclick = () => { mode = 'normal'; thresholds = loadThresholds(mode); lastGear = null; toggleButtons(); };
+    btnS.onclick = () => { mode = 'sport'; thresholds = loadThresholds(mode); lastGear = null; toggleButtons(); };
     function toggleButtons() {
-      btnN.classList.toggle('active', mode==='normal');
-      btnS.classList.toggle('active', mode==='sport');
+      btnN.classList.toggle('active', mode === 'normal');
+      btnS.classList.toggle('active', mode === 'sport');
     }
     toggleButtons();
 
-    // Détermination du rapport
+    // Détermination du rapport et calcul RPM
     function determineGear(sp) {
-      if (sp<5.5) { lastGear=null; return null; }
-      if (lastGear==null) { lastGear=1; return 1; }
+      if (sp < 5.5) { lastGear = null; return null; }
+      if (lastGear == null) { lastGear = 1; return 1; }
       const g = lastGear;
-      const speedUp   = thresholds.up[g]*v1000[g]/1000;
-      const speedDown = thresholds.down[g]*v1000[g]/1000;
-      if (sp>speedUp && g<5) lastGear++;
-      else if (sp<speedDown && g>1) lastGear--;
+      const speedUp   = thresholds.up[g]   * v1000[g] / 1000;
+      const speedDown = thresholds.down[g] * v1000[g] / 1000;
+      if (sp > speedUp && g < 5) lastGear++;
+      else if (sp < speedDown && g > 1) lastGear--;
       return lastGear;
     }
-    function calcRpm(sp,g){ return (sp<5.5||g==null)?900:Math.round(sp*1000/v1000[g]); }
+    function calcRpm(sp,g) { return (sp < 5.5 || g == null) ? 900 : Math.round(sp * 1000 / v1000[g]); }
 
     // Affichage temps réel
-    const gearEl=document.getElementById('gear-value'), rpmEl=document.getElementById('rpm-value');
-    let speedData=[], rpmData=[], shiftCount=0, cumDist=0;
-    function updateDisplay(sp){
-      const g=determineGear(sp), r=calcRpm(sp,g);
-      gearEl.textContent = g!=null?g:'—';
-      rpmEl.textContent  = r+' tr/min';
-      if (sp!=null) { speedData.push(sp); rpmData.push(r); cumDist+=sp/3600; if (rpmData.length>1 && g!=null && r<rpmData[rpmData.length-2]) shiftCount++; }
-      document.getElementById('max-rpm').textContent   = rpmData.length?Math.max(...rpmData):'—';
-      document.getElementById('avg-rpm').textContent   = rpmData.length?(rpmData.reduce((a,b)=>a+b)/rpmData.length).toFixed(0):'—';
-      document.getElementById('max-speed').textContent = speedData.length?Math.max(...speedData).toFixed(1):'—';
-      document.getElementById('avg-speed').textContent = speedData.length?(	speedData.reduce((a,b)=>a+b)/speedData.length).toFixed(1):'—';
+    const gearEl = document.getElementById('gear-value'), rpmEl = document.getElementById('rpm-value');
+    let speedData = [], rpmData = [], shiftCount = 0, cumDist = 0;
+    function updateDisplay(sp) {
+      const g = determineGear(sp), r = calcRpm(sp,g);
+      gearEl.textContent = g != null ? g : '—';
+      rpmEl.textContent  = r + ' tr/min';
+      if (sp != null) {
+        speedData.push(sp);
+        rpmData.push(r);
+        cumDist += sp / 3600;
+        if (rpmData.length > 1 && g != null && r < rpmData[rpmData.length-2]) shiftCount++;
+      }
+      document.getElementById('max-rpm').textContent   = rpmData.length ? Math.max(...rpmData) : '—';
+      document.getElementById('avg-rpm').textContent   = rpmData.length ? (rpmData.reduce((a,b)=>a+b)/rpmData.length).toFixed(0) : '—';
+      document.getElementById('max-speed').textContent = speedData.length ? Math.max(...speedData).toFixed(1) : '—';
+      document.getElementById('avg-speed').textContent = speedData.length ? (speedData.reduce((a,b)=>a+b)/speedData.length).toFixed(1) : '—';
       document.getElementById('distance').textContent  = cumDist.toFixed(2);
       document.getElementById('shift-count').textContent = shiftCount;
     }
 
     // Géolocalisation
     if ('geolocation' in navigator) {
-      navigator.geolocation.watchPosition(pos => { let s=pos.coords.speed; if(s!=null)s*=3.6; updateDisplay(s); }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
-    } else rpmEl.textContent='GPS non dispo';
+      navigator.geolocation.watchPosition(pos => {
+        let s = pos.coords.speed;
+        if (s != null) s *= 3.6;
+        updateDisplay(s);
+      }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
+    } else {
+      rpmEl.textContent = 'GPS non dispo';
+    }
 
-    // Reset trajet
+    // Reset trajet (calcul de durée) et ajout historique
     document.getElementById('reset-trip').onclick = () => {
       if (!rpmData.length) return;
-      historyArr.push({ date:new Date().toLocaleString(), distance:cumDist.toFixed(2), avgRpm:Math.round(rpmData.reduce((a,b)=>a+b)/rpmData.length), maxRpm:Math.max(...rpmData), avgSpeed:(	speedData.reduce((a,b)=>a+b)/	speedData.length).toFixed(1), maxSpeed:Math.max(...speedData).toFixed(1) });
-      localStorage.setItem('trajets',JSON.stringify(historyArr));
-      speedData=[], rpmData=[], shiftCount=0, cumDist=0, lastGear=null;
+      const avgSpeed = speedData.reduce((a,b)=>a+b)/speedData.length;
+      const durationHours = cumDist / avgSpeed;
+      const durationSec = Math.round(durationHours * 3600);
+      const hh = Math.floor(durationSec/3600).toString().padStart(2,'0');
+      const mm = Math.floor((durationSec%3600)/60).toString().padStart(2,'0');
+      const ss = (durationSec%60).toString().padStart(2,'0');
+      const duration = `${hh}:${mm}:${ss}`;
+
+      historyArr.push({
+        date:      new Date().toLocaleString(),
+        distance:  cumDist.toFixed(2),
+        duration,
+        avgRpm:    Math.round(rpmData.reduce((a,b)=>a+b)/rpmData.length),
+        maxRpm:    Math.max(...rpmData),
+        avgSpeed:  avgSpeed.toFixed(1),
+        maxSpeed:  Math.max(...speedData).toFixed(1)
+      });
+      localStorage.setItem('trajets', JSON.stringify(historyArr));
+      speedData = []; rpmData = []; shiftCount = 0; cumDist = 0; lastGear = null;
       renderHistory();
     };
 
     // Export CSV
     document.getElementById('export-btn').onclick = () => {
-      const newTrips=historyArr.slice(lastExport);
-      if(!newTrips.length){ alert('Aucun nouveau trajet'); return; }
-      let csv='Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
-      newTrips.forEach(t=>{ csv+=`${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`; });
-      const blob=new Blob([csv],{type:'text/csv'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download='trajets.csv'; a.click(); URL.revokeObjectURL(url);
+      const newTrips = historyArr.slice(lastExport);
+      if (!newTrips.length) { alert('Aucun nouveau trajet'); return; }
+      let csv = 'Date;Distance;Durée;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
+      newTrips.forEach(t => {
+        csv += `${t.date};${t.distance};${t.duration};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'trajets.csv'; a.click(); URL.revokeObjectURL(url);
       lastExport = historyArr.length;
+      localStorage.setItem('lastExport', lastExport);
     };
   </script>
 </body>
