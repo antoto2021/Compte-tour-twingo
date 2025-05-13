@@ -7,14 +7,14 @@
   <style>
     :root {
       /* Seuils par rapport (en tr/min) */
-      --rpm-up-normal-1: 2150;
+      --rpm-up-normal-1: 2100;
       --rpm-up-normal-2: 2150;
       --rpm-up-normal-3: 2150;
       --rpm-up-normal-4: 2150;
-      --rpm-up-normal-5: 3500;
-      --rpm-down-normal-1: 1200;
-      --rpm-down-normal-2: 1500;
-      --rpm-down-normal-3: 1500;
+      --rpm-up-normal-5: 5000;
+      --rpm-down-normal-1: 1050;
+      --rpm-down-normal-2: 1100;
+      --rpm-down-normal-3: 1400;
       --rpm-down-normal-4: 1500;
       --rpm-down-normal-5: 1500;
 
@@ -37,7 +37,7 @@
       --bg-history   : #000;
       --text-history : #000;
       --bg-stats     : #000;
-      --text-stats   : #000;
+      --text-stats   : #fff;
 
       /* Tailles fluides */
       --font-base      : 4vw;
