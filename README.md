@@ -7,12 +7,12 @@
   <style>
     :root {
       /* Seuils par rapport (en tr/min) */
-      --rpm-up-normal-1: 2100;
+      --rpm-up-normal-1: 2000;
       --rpm-up-normal-2: 2150;
       --rpm-up-normal-3: 2150;
       --rpm-up-normal-4: 2150;
       --rpm-up-normal-5: 5000;
-      --rpm-down-normal-1: 1050;
+      --rpm-down-normal-1: 0000;
       --rpm-down-normal-2: 1100;
       --rpm-down-normal-3: 1400;
       --rpm-down-normal-4: 1500;
