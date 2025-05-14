@@ -224,7 +224,7 @@
       }, console.error, {
         enableHighAccuracy: true,
         maximumAge: 0,     // aucune mesure en cache
-        timeout: 5000
+        timeout: 2000
       });
     
       // 2) Polling régulier toutes les 200 ms
@@ -236,7 +236,7 @@
         }, () => {/* on ignore l'erreur */}, {
           enableHighAccuracy: true,
           maximumAge: 0,
-          timeout: 2000
+          timeout: 500
         });
       }, 200);
     } else {
