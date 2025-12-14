@@ -1,0 +1,397 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Settings, Lock, Unlock, Zap, Gauge, List, Download, Trash2, Play, Square, Car, Activity } from 'lucide-react';
+
+// --- COMPOSANTS UI ---
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl ${className}`}>
+    {children}
+  </div>
+);
+
+const Button = ({ onClick, active, children, icon: Icon, color = "blue", className = "" }) => {
+  const colors = {
+    blue: active ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
+    red: active ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
+    green: active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-medium transition-all duration-300 active:scale-95 ${colors[color]} ${className}`}
+    >
+      {Icon && <Icon size={20} />}
+      {children}
+    </button>
+  );
+};
+
+export default function TwingoDash() {
+  // --- STATE PRINCIPAL ---
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'history'
+  const [speed, setSpeed] = useState(0);
+  const [rpm, setRpm] = useState(0);
+  const [currentGear, setCurrentGear] = useState(1);
+  const [gpsActive, setGpsActive] = useState(false);
+  const [wakeLock, setWakeLock] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // --- ENREGISTREMENT & DATA ---
+  const [isRecording, setIsRecording] = useState(false);
+  const [tripData, setTripData] = useState([]); // Historique complet
+  const lastRecordTime = useRef(0);
+
+  // Valeurs par défaut Twingo (km/h pour 1000 tr/min)
+  const defaultRatios = { 1: 7.45, 2: 13.45, 3: 18.97, 4: 24.35, 5: 30.55, 6: 36.08 };
+  
+  const [ratios, setRatios] = useState(defaultRatios);
+  const [minRpm, setMinRpm] = useState(1500);
+  const [maxRpm, setMaxRpm] = useState(3000);
+
+  // --- PERSISTENCE (LocalStorage) ---
+  useEffect(() => {
+    const savedRatios = localStorage.getItem('twingo_ratios');
+    const savedHistory = localStorage.getItem('twingo_trip_history');
+    if (savedRatios) setRatios(JSON.parse(savedRatios));
+    if (savedHistory) setTripData(JSON.parse(savedHistory));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('twingo_ratios', JSON.stringify(ratios));
+  }, [ratios]);
+
+  useEffect(() => {
+    // Sauvegarde l'historique à chaque modification (ou optimiser pour sauvegarder moins souvent)
+    localStorage.setItem('twingo_trip_history', JSON.stringify(tripData));
+  }, [tripData]);
+
+  // --- LOGIQUE METIER ---
+  const determineGear = useCallback((currentSpeed) => {
+    if (currentSpeed < 5) return 1;
+
+    let bestGear = 1;
+    let bestScore = Infinity;
+
+    for (let g = 1; g <= 6; g++) {
+      const calculatedRpm = (currentSpeed * 1000) / ratios[g];
+      if (calculatedRpm >= minRpm && calculatedRpm <= maxRpm) return g;
+      const score = Math.min(Math.abs(calculatedRpm - minRpm), Math.abs(calculatedRpm - maxRpm));
+      if (score < bestScore) {
+        bestScore = score;
+        bestGear = g;
+      }
+    }
+    return bestGear;
+  }, [ratios, minRpm, maxRpm]);
+
+  // --- BOUCLE GPS & ENREGISTREMENT ---
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGpsActive(true);
+        let speedMs = pos.coords.speed;
+        if (speedMs === null || speedMs < 0) speedMs = 0;
+        
+        const speedKmh = speedMs * 3.6;
+        setSpeed(speedKmh);
+
+        const gear = determineGear(speedKmh);
+        setCurrentGear(gear);
+        
+        const calculatedRpm = Math.round((speedKmh * 1000) / ratios[gear]);
+        setRpm(calculatedRpm);
+
+        // Enregistrement des données si actif (max 1 point par seconde)
+        if (isRecording) {
+          const now = Date.now();
+          if (now - lastRecordTime.current > 1000) {
+            const newPoint = {
+              id: now,
+              time: new Date(now).toLocaleTimeString(),
+              speed: Math.round(speedKmh),
+              rpm: calculatedRpm,
+              gear: gear,
+              lat: pos.coords.latitude.toFixed(5),
+              lon: pos.coords.longitude.toFixed(5)
+            };
+            setTripData(prev => [newPoint, ...prev]); // Ajout au début pour l'ordre chrono inverse
+            lastRecordTime.current = now;
+          }
+        }
+      },
+      (err) => {
+        console.error("GPS Error", err);
+        setGpsActive(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [ratios, determineGear, isRecording]);
+
+  // --- WAKE LOCK ---
+  const toggleWakeLock = async () => {
+    if (wakeLock) {
+      await wakeLock.release();
+      setWakeLock(null);
+    } else {
+      try {
+        const lock = await navigator.wakeLock.request('screen');
+        setWakeLock(lock);
+        lock.addEventListener('release', () => setWakeLock(null));
+      } catch (err) {
+        console.error("Wake Lock failed", err);
+      }
+    }
+  };
+
+  // --- EXPORT EXCEL (CSV) ---
+  const exportCSV = () => {
+    if (tripData.length === 0) return;
+    
+    const headers = ["Heure", "Vitesse (km/h)", "RPM", "Rapport", "Latitude", "Longitude"];
+    const rows = tripData.map(row => 
+      [row.time, row.speed, row.rpm, row.gear, row.lat, row.lon].join(";")
+    );
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(";") + "\n" 
+      + rows.join("\n");
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `trajet_twingo_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const clearHistory = () => {
+    if (confirm("Voulez-vous vraiment effacer tout l'historique ?")) {
+      setTripData([]);
+    }
+  };
+
+  // --- HELPER RENDU ---
+  const getRpmColor = (val) => {
+    if (val < 2000) return 'text-emerald-400';
+    if (val < 3500) return 'text-blue-400';
+    if (val < 5000) return 'text-orange-400';
+    return 'text-red-500 animate-pulse';
+  };
+  const getProgress = (val, max) => Math.min((val / max) * 100, 100);
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans pb-24 relative overflow-hidden">
+      
+      {/* Background Ambience */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-20%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[0%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Header */}
+      <header className="relative z-20 flex justify-between items-center p-6 bg-gradient-to-b from-black/80 to-transparent">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full transition-colors duration-500 ${gpsActive ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'}`} />
+          <span className="text-sm font-medium tracking-wide text-slate-400">
+            {gpsActive ? 'GPS ACTIF' : 'RECHERCHE GPS...'}
+          </span>
+        </div>
+        <button onClick={() => setShowSettings(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors">
+          <Settings size={20} className="text-slate-300" />
+        </button>
+      </header>
+
+      <main className="relative z-10 px-4 max-w-lg mx-auto">
+        
+        {/* VIEW: DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+            
+            {/* RPM Gauge */}
+            <div className="text-center py-4">
+              <div className="relative inline-flex flex-col items-center justify-center w-64 h-64">
+                <svg className="absolute w-full h-full transform -rotate-90 drop-shadow-2xl">
+                  <circle cx="128" cy="128" r="115" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-800/50" />
+                  <circle 
+                    cx="128" cy="128" r="115" stroke="currentColor" strokeWidth="12" fill="transparent"
+                    className={`${getRpmColor(rpm)} transition-all duration-300 ease-out`}
+                    strokeDasharray={2 * Math.PI * 115}
+                    strokeDashoffset={2 * Math.PI * 115 - (2 * Math.PI * 115 * getProgress(rpm, 7000)) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="flex flex-col items-center z-10">
+                  <span className={`text-6xl font-bold tracking-tighter ${getRpmColor(rpm)} tabular-nums`}>
+                    {rpm}
+                  </span>
+                  <span className="text-slate-400 text-sm font-medium mt-1">TR/MIN</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Gear & Speed */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="flex flex-col items-center justify-center h-32">
+                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Rapport</span>
+                <div className="text-6xl font-bold text-white tabular-nums">{currentGear}</div>
+              </Card>
+
+              <Card className="flex flex-col items-center justify-center h-32 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
+                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Vitesse</span>
+                <div className="text-5xl font-bold text-white tabular-nums">{Math.round(speed)}</div>
+                <div className="text-[10px] text-slate-400 font-medium">km/h</div>
+              </Card>
+            </div>
+
+            {/* Recording Controls */}
+            <Card className="flex items-center justify-between p-4 bg-slate-800/40">
+              <div className="flex flex-col">
+                <span className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Enregistrement</span>
+                <span className="text-2xl font-bold text-white tabular-nums">{tripData.length} <span className="text-sm font-normal text-slate-500">pts</span></span>
+              </div>
+              <Button 
+                onClick={() => setIsRecording(!isRecording)} 
+                active={isRecording}
+                color={isRecording ? "red" : "blue"}
+                className="w-32"
+              >
+                {isRecording ? (
+                  <><Square size={16} fill="currentColor" /> STOP</>
+                ) : (
+                  <><Play size={16} fill="currentColor" /> REC</>
+                )}
+              </Button>
+            </Card>
+
+            {/* Wake Lock Toggle */}
+            <button 
+              onClick={toggleWakeLock} 
+              className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                wakeLock ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+              }`}
+            >
+              {wakeLock ? <Lock size={14} /> : <Unlock size={14} />}
+              {wakeLock ? 'Écran Verrouillé (Allumé)' : 'Activer Mode Conduite'}
+            </button>
+
+          </div>
+        )}
+
+        {/* VIEW: HISTORY (DATA) */}
+        {activeTab === 'history' && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-[75vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Données de Trajet</h2>
+              <div className="flex gap-2">
+                <button onClick={exportCSV} className="p-3 bg-blue-600 rounded-full text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-colors" title="Exporter CSV">
+                  <Download size={20} />
+                </button>
+                <button onClick={clearHistory} className="p-3 bg-slate-800 rounded-full text-red-400 hover:bg-slate-700 transition-colors" title="Effacer">
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden bg-slate-900/50 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col">
+              {/* Table Header */}
+              <div className="grid grid-cols-4 gap-2 p-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center bg-slate-900/80">
+                <div>Heure</div>
+                <div>Km/h</div>
+                <div>RPM</div>
+                <div>Rap.</div>
+              </div>
+              
+              {/* Table Body */}
+              <div className="overflow-y-auto p-2 space-y-1 scrollbar-hide">
+                {tripData.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500">
+                    <Activity size={48} className="mx-auto mb-4 opacity-20" />
+                    <p>Aucune donnée enregistrée.</p>
+                    <p className="text-xs mt-2">Appuyez sur REC dans le tableau de bord.</p>
+                  </div>
+                ) : (
+                  tripData.map((pt) => (
+                    <div key={pt.id} className="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-lg text-sm text-center items-center hover:bg-white/10 transition-colors">
+                      <div className="text-slate-300 font-mono text-xs">{pt.time}</div>
+                      <div className="font-bold text-white">{pt.speed}</div>
+                      <div className={`font-medium ${getRpmColor(pt.rpm)}`}>{pt.rpm}</div>
+                      <div className="text-slate-400">{pt.gear}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-full p-1.5 shadow-2xl flex gap-1">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all ${
+            activeTab === 'dashboard' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Car size={18} />
+          <span className={activeTab === 'dashboard' ? 'block' : 'hidden sm:block'}>Conduite</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all ${
+            activeTab === 'history' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <List size={18} />
+          <span className={activeTab === 'history' ? 'block' : 'hidden sm:block'}>Données</span>
+        </button>
+      </nav>
+
+      {/* Settings Modal (Identique) */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-white/5">
+              <h2 className="text-xl font-bold text-white">Réglages Boîte</h2>
+              <button onClick={() => setShowSettings(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10">
+                <X size={20} className="text-white" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
+              <p className="text-xs text-slate-400">Ratio vitesse (km/h) pour 1000 tr/min.</p>
+              <div className="grid grid-cols-2 gap-4">
+                {[1, 2, 3, 4, 5, 6].map(g => (
+                  <div key={g} className="space-y-1">
+                    <label className="text-xs text-slate-500 font-medium ml-1">Rapport {g}</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={ratios[g]}
+                      onChange={(e) => setRatios({...ratios, [g]: parseFloat(e.target.value) || 0})}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                ))}
+              </div>
+              <button 
+                  onClick={() => setRatios(defaultRatios)}
+                  className="w-full py-3 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
+                >
+                  Réinitialiser
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+
