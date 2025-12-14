@@ -1,397 +1,535 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, Lock, Unlock, Zap, Gauge, List, Download, Trash2, Play, Square, Car, Activity } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TwingoDash iOS</title>
+    
+    <!-- Tailwind CSS (Design) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-// --- COMPOSANTS UI ---
-const Card = ({ children, className = "" }) => (
-  <div className={`bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl ${className}`}>
-    {children}
-  </div>
-);
-
-const Button = ({ onClick, active, children, icon: Icon, color = "blue", className = "" }) => {
-  const colors = {
-    blue: active ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
-    red: active ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
-    green: active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/10 text-white/70 hover:bg-white/20',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-medium transition-all duration-300 active:scale-95 ${colors[color]} ${className}`}
-    >
-      {Icon && <Icon size={20} />}
-      {children}
-    </button>
-  );
-};
-
-export default function TwingoDash() {
-  // --- STATE PRINCIPAL ---
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'history'
-  const [speed, setSpeed] = useState(0);
-  const [rpm, setRpm] = useState(0);
-  const [currentGear, setCurrentGear] = useState(1);
-  const [gpsActive, setGpsActive] = useState(false);
-  const [wakeLock, setWakeLock] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-
-  // --- ENREGISTREMENT & DATA ---
-  const [isRecording, setIsRecording] = useState(false);
-  const [tripData, setTripData] = useState([]); // Historique complet
-  const lastRecordTime = useRef(0);
-
-  // Valeurs par défaut Twingo (km/h pour 1000 tr/min)
-  const defaultRatios = { 1: 7.45, 2: 13.45, 3: 18.97, 4: 24.35, 5: 30.55, 6: 36.08 };
-  
-  const [ratios, setRatios] = useState(defaultRatios);
-  const [minRpm, setMinRpm] = useState(1500);
-  const [maxRpm, setMaxRpm] = useState(3000);
-
-  // --- PERSISTENCE (LocalStorage) ---
-  useEffect(() => {
-    const savedRatios = localStorage.getItem('twingo_ratios');
-    const savedHistory = localStorage.getItem('twingo_trip_history');
-    if (savedRatios) setRatios(JSON.parse(savedRatios));
-    if (savedHistory) setTripData(JSON.parse(savedHistory));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('twingo_ratios', JSON.stringify(ratios));
-  }, [ratios]);
-
-  useEffect(() => {
-    // Sauvegarde l'historique à chaque modification (ou optimiser pour sauvegarder moins souvent)
-    localStorage.setItem('twingo_trip_history', JSON.stringify(tripData));
-  }, [tripData]);
-
-  // --- LOGIQUE METIER ---
-  const determineGear = useCallback((currentSpeed) => {
-    if (currentSpeed < 5) return 1;
-
-    let bestGear = 1;
-    let bestScore = Infinity;
-
-    for (let g = 1; g <= 6; g++) {
-      const calculatedRpm = (currentSpeed * 1000) / ratios[g];
-      if (calculatedRpm >= minRpm && calculatedRpm <= maxRpm) return g;
-      const score = Math.min(Math.abs(calculatedRpm - minRpm), Math.abs(calculatedRpm - maxRpm));
-      if (score < bestScore) {
-        bestScore = score;
-        bestGear = g;
-      }
-    }
-    return bestGear;
-  }, [ratios, minRpm, maxRpm]);
-
-  // --- BOUCLE GPS & ENREGISTREMENT ---
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setGpsActive(true);
-        let speedMs = pos.coords.speed;
-        if (speedMs === null || speedMs < 0) speedMs = 0;
-        
-        const speedKmh = speedMs * 3.6;
-        setSpeed(speedKmh);
-
-        const gear = determineGear(speedKmh);
-        setCurrentGear(gear);
-        
-        const calculatedRpm = Math.round((speedKmh * 1000) / ratios[gear]);
-        setRpm(calculatedRpm);
-
-        // Enregistrement des données si actif (max 1 point par seconde)
-        if (isRecording) {
-          const now = Date.now();
-          if (now - lastRecordTime.current > 1000) {
-            const newPoint = {
-              id: now,
-              time: new Date(now).toLocaleTimeString(),
-              speed: Math.round(speedKmh),
-              rpm: calculatedRpm,
-              gear: gear,
-              lat: pos.coords.latitude.toFixed(5),
-              lon: pos.coords.longitude.toFixed(5)
-            };
-            setTripData(prev => [newPoint, ...prev]); // Ajout au début pour l'ordre chrono inverse
-            lastRecordTime.current = now;
-          }
+    <!-- Configuration Tailwind personnalisée pour les animations -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
         }
-      },
-      (err) => {
-        console.error("GPS Error", err);
-        setGpsActive(false);
-      },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-    );
+    </script>
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [ratios, determineGear, isRecording]);
-
-  // --- WAKE LOCK ---
-  const toggleWakeLock = async () => {
-    if (wakeLock) {
-      await wakeLock.release();
-      setWakeLock(null);
-    } else {
-      try {
-        const lock = await navigator.wakeLock.request('screen');
-        setWakeLock(lock);
-        lock.addEventListener('release', () => setWakeLock(null));
-      } catch (err) {
-        console.error("Wake Lock failed", err);
-      }
-    }
-  };
-
-  // --- EXPORT EXCEL (CSV) ---
-  const exportCSV = () => {
-    if (tripData.length === 0) return;
-    
-    const headers = ["Heure", "Vitesse (km/h)", "RPM", "Rapport", "Latitude", "Longitude"];
-    const rows = tripData.map(row => 
-      [row.time, row.speed, row.rpm, row.gear, row.lat, row.lon].join(";")
-    );
-    
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(";") + "\n" 
-      + rows.join("\n");
-      
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `trajet_twingo_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const clearHistory = () => {
-    if (confirm("Voulez-vous vraiment effacer tout l'historique ?")) {
-      setTripData([]);
-    }
-  };
-
-  // --- HELPER RENDU ---
-  const getRpmColor = (val) => {
-    if (val < 2000) return 'text-emerald-400';
-    if (val < 3500) return 'text-blue-400';
-    if (val < 5000) return 'text-orange-400';
-    return 'text-red-500 animate-pulse';
-  };
-  const getProgress = (val, max) => Math.min((val / max) * 100, 100);
-
-  return (
-    <div className="min-h-screen bg-black text-white font-sans pb-24 relative overflow-hidden">
-      
-      {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-20%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[0%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px]" />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-20 flex justify-between items-center p-6 bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full transition-colors duration-500 ${gpsActive ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'}`} />
-          <span className="text-sm font-medium tracking-wide text-slate-400">
-            {gpsActive ? 'GPS ACTIF' : 'RECHERCHE GPS...'}
-          </span>
-        </div>
-        <button onClick={() => setShowSettings(true)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors">
-          <Settings size={20} className="text-slate-300" />
-        </button>
-      </header>
-
-      <main className="relative z-10 px-4 max-w-lg mx-auto">
+    <style>
+        /* Styles spécifiques pour masquer la barre de défilement tout en gardant le scroll */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
         
-        {/* VIEW: DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-            
-            {/* RPM Gauge */}
-            <div className="text-center py-4">
-              <div className="relative inline-flex flex-col items-center justify-center w-64 h-64">
-                <svg className="absolute w-full h-full transform -rotate-90 drop-shadow-2xl">
-                  <circle cx="128" cy="128" r="115" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-800/50" />
-                  <circle 
-                    cx="128" cy="128" r="115" stroke="currentColor" strokeWidth="12" fill="transparent"
-                    className={`${getRpmColor(rpm)} transition-all duration-300 ease-out`}
-                    strokeDasharray={2 * Math.PI * 115}
-                    strokeDashoffset={2 * Math.PI * 115 - (2 * Math.PI * 115 * getProgress(rpm, 7000)) / 100}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="flex flex-col items-center z-10">
-                  <span className={`text-6xl font-bold tracking-tighter ${getRpmColor(rpm)} tabular-nums`}>
-                    {rpm}
-                  </span>
-                  <span className="text-slate-400 text-sm font-medium mt-1">TR/MIN</span>
-                </div>
-              </div>
-            </div>
+        /* Effet Glassmorphism amélioré */
+        .glass {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-            {/* Gear & Speed */}
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="flex flex-col items-center justify-center h-32">
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Rapport</span>
-                <div className="text-6xl font-bold text-white tabular-nums">{currentGear}</div>
-              </Card>
+        /* Transition fluide pour la jauge */
+        .gauge-circle {
+            transition: stroke-dashoffset 0.3s ease-out, color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen overflow-hidden select-none">
 
-              <Card className="flex flex-col items-center justify-center h-32 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Vitesse</span>
-                <div className="text-5xl font-bold text-white tabular-nums">{Math.round(speed)}</div>
-                <div className="text-[10px] text-slate-400 font-medium">km/h</div>
-              </Card>
-            </div>
-
-            {/* Recording Controls */}
-            <Card className="flex items-center justify-between p-4 bg-slate-800/40">
-              <div className="flex flex-col">
-                <span className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Enregistrement</span>
-                <span className="text-2xl font-bold text-white tabular-nums">{tripData.length} <span className="text-sm font-normal text-slate-500">pts</span></span>
-              </div>
-              <Button 
-                onClick={() => setIsRecording(!isRecording)} 
-                active={isRecording}
-                color={isRecording ? "red" : "blue"}
-                className="w-32"
-              >
-                {isRecording ? (
-                  <><Square size={16} fill="currentColor" /> STOP</>
-                ) : (
-                  <><Play size={16} fill="currentColor" /> REC</>
-                )}
-              </Button>
-            </Card>
-
-            {/* Wake Lock Toggle */}
-            <button 
-              onClick={toggleWakeLock} 
-              className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
-                wakeLock ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-slate-400 hover:bg-white/10'
-              }`}
-            >
-              {wakeLock ? <Lock size={14} /> : <Unlock size={14} />}
-              {wakeLock ? 'Écran Verrouillé (Allumé)' : 'Activer Mode Conduite'}
-            </button>
-
-          </div>
-        )}
-
-        {/* VIEW: HISTORY (DATA) */}
-        {activeTab === 'history' && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-[75vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Données de Trajet</h2>
-              <div className="flex gap-2">
-                <button onClick={exportCSV} className="p-3 bg-blue-600 rounded-full text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-colors" title="Exporter CSV">
-                  <Download size={20} />
-                </button>
-                <button onClick={clearHistory} className="p-3 bg-slate-800 rounded-full text-red-400 hover:bg-slate-700 transition-colors" title="Effacer">
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-hidden bg-slate-900/50 border border-white/10 rounded-3xl backdrop-blur-md flex flex-col">
-              {/* Table Header */}
-              <div className="grid grid-cols-4 gap-2 p-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center bg-slate-900/80">
-                <div>Heure</div>
-                <div>Km/h</div>
-                <div>RPM</div>
-                <div>Rap.</div>
-              </div>
-              
-              {/* Table Body */}
-              <div className="overflow-y-auto p-2 space-y-1 scrollbar-hide">
-                {tripData.length === 0 ? (
-                  <div className="text-center py-20 text-slate-500">
-                    <Activity size={48} className="mx-auto mb-4 opacity-20" />
-                    <p>Aucune donnée enregistrée.</p>
-                    <p className="text-xs mt-2">Appuyez sur REC dans le tableau de bord.</p>
-                  </div>
-                ) : (
-                  tripData.map((pt) => (
-                    <div key={pt.id} className="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-lg text-sm text-center items-center hover:bg-white/10 transition-colors">
-                      <div className="text-slate-300 font-mono text-xs">{pt.time}</div>
-                      <div className="font-bold text-white">{pt.speed}</div>
-                      <div className={`font-medium ${getRpmColor(pt.rpm)}`}>{pt.rpm}</div>
-                      <div className="text-slate-400">{pt.gear}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-full p-1.5 shadow-2xl flex gap-1">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all ${
-            activeTab === 'dashboard' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Car size={18} />
-          <span className={activeTab === 'dashboard' ? 'block' : 'hidden sm:block'}>Conduite</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all ${
-            activeTab === 'history' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <List size={18} />
-          <span className={activeTab === 'history' ? 'block' : 'hidden sm:block'}>Données</span>
-        </button>
-      </nav>
-
-      {/* Settings Modal (Identique) */}
-      {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
-            <div className="flex justify-between items-center p-6 border-b border-white/5">
-              <h2 className="text-xl font-bold text-white">Réglages Boîte</h2>
-              <button onClick={() => setShowSettings(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10">
-                <X size={20} className="text-white" />
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
-              <p className="text-xs text-slate-400">Ratio vitesse (km/h) pour 1000 tr/min.</p>
-              <div className="grid grid-cols-2 gap-4">
-                {[1, 2, 3, 4, 5, 6].map(g => (
-                  <div key={g} className="space-y-1">
-                    <label className="text-xs text-slate-500 font-medium ml-1">Rapport {g}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={ratios[g]}
-                      onChange={(e) => setRatios({...ratios, [g]: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                ))}
-              </div>
-              <button 
-                  onClick={() => setRatios(defaultRatios)}
-                  className="w-full py-3 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
-                >
-                  Réinitialiser
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <!-- Arrière-plan d'ambiance -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-[-10%] left-[-20%] w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[0%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[100px]"></div>
     </div>
-  );
-}
 
+    <!-- En-tête -->
+    <header class="relative z-20 flex justify-between items-center p-6 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-2">
+            <div id="gps-status-dot" class="w-3 h-3 rounded-full bg-red-500 transition-colors duration-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>
+            <span id="gps-status-text" class="text-xs font-bold tracking-widest text-slate-400 uppercase">Recherche GPS...</span>
+        </div>
+        <button onclick="toggleSettings(true)" class="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors active:scale-95">
+            <i data-lucide="settings" class="w-5 h-5 text-slate-300"></i>
+        </button>
+    </header>
 
+    <!-- Conteneur Principal -->
+    <main class="relative z-10 px-4 max-w-lg mx-auto h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide pb-20">
+        
+        <!-- VUE: TABLEAU DE BORD -->
+        <div id="view-dashboard" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            <!-- Jauge RPM -->
+            <div class="text-center py-2 flex flex-col items-center">
+                <div class="relative w-72 h-72">
+                    <!-- Cercle de fond -->
+                    <svg class="w-full h-full transform -rotate-90">
+                        <circle cx="144" cy="144" r="120" stroke="currentColor" stroke-width="12" fill="transparent" class="text-slate-800/50" />
+                        <!-- Cercle de progression -->
+                        <circle id="rpm-circle" cx="144" cy="144" r="120" stroke="currentColor" stroke-width="12" fill="transparent"
+                            class="text-emerald-400 gauge-circle"
+                            stroke-dasharray="753.98"
+                            stroke-dashoffset="753.98"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                    
+                    <!-- Valeur RPM Centrale -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span id="rpm-value" class="text-7xl font-bold tracking-tighter text-white tabular-nums transition-colors duration-300">0</span>
+                        <span class="text-slate-400 text-sm font-bold tracking-widest mt-2">TR/MIN</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grille Vitesse & Rapport -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Carte Rapport -->
+                <div class="glass rounded-3xl p-4 flex flex-col items-center justify-center h-36">
+                    <span class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Rapport</span>
+                    <div id="gear-value" class="text-6xl font-bold text-white tabular-nums">1</div>
+                    <div class="text-blue-500 text-[10px] font-bold mt-1">ESTIMÉ</div>
+                </div>
+
+                <!-- Carte Vitesse -->
+                <div class="glass rounded-3xl p-4 flex flex-col items-center justify-center h-36 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent"></div>
+                    <span class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Vitesse</span>
+                    <div id="speed-value" class="text-6xl font-bold text-white tabular-nums">0</div>
+                    <div class="text-slate-400 text-[10px] font-bold">km/h</div>
+                </div>
+            </div>
+
+            <!-- Contrôles Enregistrement -->
+            <div class="glass-panel rounded-2xl p-4 flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Points Enregistrés</span>
+                    <span id="points-count" class="text-2xl font-bold text-white tabular-nums">0</span>
+                </div>
+                <button id="btn-record" onclick="toggleRecording()" 
+                    class="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>REC</span>
+                </button>
+            </div>
+
+            <!-- Wake Lock (Mode Conduite) -->
+            <button id="btn-wakelock" onclick="toggleWakeLock()" 
+                class="w-full py-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide transition-all bg-white/5 text-slate-400 hover:bg-white/10 border border-transparent">
+                <i data-lucide="unlock" class="w-4 h-4"></i>
+                <span>Activer Mode Conduite</span>
+            </button>
+        </div>
+
+        <!-- VUE: HISTORIQUE -->
+        <div id="view-history" class="hidden h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-500">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">Historique</h2>
+                <div class="flex gap-3">
+                    <button onclick="exportCSV()" class="p-3 bg-blue-600 rounded-full text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition-colors active:scale-95">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="clearHistory()" class="p-3 bg-slate-800 rounded-full text-red-400 hover:bg-slate-700 transition-colors active:scale-95">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tableau -->
+            <div class="flex-1 glass rounded-3xl overflow-hidden flex flex-col border border-white/5">
+                <div class="grid grid-cols-4 p-4 border-b border-white/10 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/50">
+                    <div>Heure</div>
+                    <div>Km/h</div>
+                    <div>RPM</div>
+                    <div>Rapp.</div>
+                </div>
+                
+                <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide">
+                    <!-- Les lignes seront insérées ici par JS -->
+                    <div class="text-center py-20 text-slate-600">
+                        <i data-lucide="activity" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
+                        <p class="text-sm">Aucune donnée.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Navigation du Bas -->
+    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass rounded-full p-1.5 shadow-2xl flex gap-1 items-center">
+        <button onclick="switchTab('dashboard')" id="nav-dash" class="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all bg-white text-black shadow-lg">
+            <i data-lucide="car" class="w-4 h-4"></i>
+            <span class="hidden sm:block">Conduite</span>
+        </button>
+        <button onclick="switchTab('history')" id="nav-hist" class="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all text-slate-400 hover:text-white">
+            <i data-lucide="list" class="w-4 h-4"></i>
+            <span class="hidden sm:block">Données</span>
+        </button>
+    </nav>
+
+    <!-- Modal Réglages -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
+            <div class="flex justify-between items-center p-6 border-b border-white/5">
+                <h2 class="text-xl font-bold text-white">Réglages Boîte</h2>
+                <button onclick="toggleSettings(false)" class="p-2 bg-white/5 rounded-full hover:bg-white/10">
+                    <i data-lucide="x" class="w-5 h-5 text-white"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
+                <p class="text-xs text-slate-400">Ratio vitesse (km/h) pour 1000 tr/min. Sauvegarde automatique.</p>
+                
+                <div id="ratios-inputs" class="grid grid-cols-2 gap-4">
+                    <!-- Généré par JS -->
+                </div>
+
+                <button onclick="resetRatios()" class="w-full py-4 text-sm text-red-400 hover:text-red-300 font-bold uppercase tracking-wider transition-colors border-t border-white/5 mt-4">
+                    Réinitialiser valeurs par défaut
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIQUE JAVASCRIPT -->
+    <script>
+        // --- CONSTANTES & CONFIG ---
+        const DEFAULT_RATIOS = { 1: 7.45, 2: 13.45, 3: 18.97, 4: 24.35, 5: 30.55, 6: 36.08 };
+        const MIN_RPM = 1500;
+        const MAX_RPM = 3000;
+        const MAX_GAUGE_RPM = 7000;
+        const CIRCUMFERENCE = 2 * Math.PI * 120; // r=120 dans le SVG
+
+        // --- STATE ---
+        let state = {
+            speed: 0,
+            rpm: 0,
+            gear: 1,
+            gpsActive: false,
+            isRecording: false,
+            tripData: [],
+            ratios: { ...DEFAULT_RATIOS },
+            wakeLock: null,
+            lastRecordTime: 0
+        };
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            rpmCircle: document.getElementById('rpm-circle'),
+            rpmValue: document.getElementById('rpm-value'),
+            speedValue: document.getElementById('speed-value'),
+            gearValue: document.getElementById('gear-value'),
+            gpsDot: document.getElementById('gps-status-dot'),
+            gpsText: document.getElementById('gps-status-text'),
+            recordBtn: document.getElementById('btn-record'),
+            pointsCount: document.getElementById('points-count'),
+            historyList: document.getElementById('history-list'),
+            wakeLockBtn: document.getElementById('btn-wakelock'),
+            ratiosInputs: document.getElementById('ratios-inputs')
+        };
+
+        // --- INITIALISATION ---
+        function init() {
+            // Charger LocalStorage
+            const savedRatios = localStorage.getItem('twingo_ratios');
+            if (savedRatios) state.ratios = JSON.parse(savedRatios);
+            
+            const savedHistory = localStorage.getItem('twingo_trip_history');
+            if (savedHistory) state.tripData = JSON.parse(savedHistory);
+
+            // Initialiser UI
+            renderSettingsInputs();
+            updateDashboard();
+            renderHistory();
+            lucide.createIcons();
+
+            // Démarrer GPS
+            if ('geolocation' in navigator) {
+                navigator.geolocation.watchPosition(handleGpsSuccess, handleGpsError, {
+                    enableHighAccuracy: true,
+                    maximumAge: 1000,
+                    timeout: 5000
+                });
+            } else {
+                alert("Géolocalisation non supportée par ce navigateur.");
+            }
+        }
+
+        // --- LOGIQUE METIER ---
+        function handleGpsSuccess(pos) {
+            if (!state.gpsActive) {
+                state.gpsActive = true;
+                updateGpsStatus(true);
+            }
+
+            let speedMs = pos.coords.speed;
+            if (speedMs === null || speedMs < 0) speedMs = 0;
+            const speedKmh = speedMs * 3.6;
+
+            state.speed = speedKmh;
+            state.gear = determineGear(speedKmh);
+            state.rpm = Math.round((speedKmh * 1000) / state.ratios[state.gear]);
+
+            // Enregistrement
+            if (state.isRecording) {
+                const now = Date.now();
+                if (now - state.lastRecordTime > 1000) { // Max 1 point / sec
+                    const point = {
+                        id: now,
+                        time: new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+                        speed: Math.round(state.speed),
+                        rpm: state.rpm,
+                        gear: state.gear,
+                        lat: pos.coords.latitude.toFixed(5),
+                        lon: pos.coords.longitude.toFixed(5)
+                    };
+                    state.tripData.unshift(point); // Ajout au début
+                    state.lastRecordTime = now;
+                    localStorage.setItem('twingo_trip_history', JSON.stringify(state.tripData));
+                    
+                    // Mise à jour partielle pour perf
+                    els.pointsCount.textContent = state.tripData.length;
+                    if (!document.getElementById('view-history').classList.contains('hidden')) {
+                        renderHistory();
+                    }
+                }
+            }
+
+            updateDashboard();
+        }
+
+        function handleGpsError(err) {
+            console.error(err);
+            state.gpsActive = false;
+            updateGpsStatus(false);
+        }
+
+        function determineGear(speed) {
+            if (speed < 5) return 1;
+            let bestGear = 1;
+            let bestScore = Infinity;
+
+            for (let g = 1; g <= 6; g++) {
+                const calculatedRpm = (speed * 1000) / state.ratios[g];
+                if (calculatedRpm >= MIN_RPM && calculatedRpm <= MAX_RPM) return g;
+                
+                const score = Math.min(Math.abs(calculatedRpm - MIN_RPM), Math.abs(calculatedRpm - MAX_RPM));
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestGear = g;
+                }
+            }
+            return bestGear;
+        }
+
+        // --- UI UPDATES ---
+        function updateDashboard() {
+            // Speed & Gear
+            els.speedValue.textContent = Math.round(state.speed);
+            els.gearValue.textContent = state.gear;
+            els.rpmValue.textContent = state.rpm;
+
+            // Gauge Color logic
+            let colorClass = 'text-emerald-400';
+            if (state.rpm > 3500) colorClass = 'text-blue-400';
+            if (state.rpm > 5000) colorClass = 'text-orange-400';
+            if (state.rpm > 6200) colorClass = 'text-red-500';
+
+            els.rpmValue.className = `text-7xl font-bold tracking-tighter tabular-nums transition-colors duration-300 ${colorClass}`;
+            els.rpmCircle.setAttribute('class', `gauge-circle transition-all duration-300 ${colorClass}`);
+
+            // Gauge Progress
+            const progress = Math.min(state.rpm / MAX_GAUGE_RPM, 1);
+            const offset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
+            els.rpmCircle.style.strokeDashoffset = offset;
+            
+            els.pointsCount.textContent = state.tripData.length;
+        }
+
+        function updateGpsStatus(active) {
+            if (active) {
+                els.gpsDot.className = "w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_#22c55e] transition-colors duration-500";
+                els.gpsText.textContent = "GPS CONNECTÉ";
+                els.gpsText.className = "text-xs font-bold tracking-widest text-emerald-400 uppercase";
+            } else {
+                els.gpsDot.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-colors duration-500 animate-pulse";
+                els.gpsText.textContent = "RECHERCHE GPS...";
+                els.gpsText.className = "text-xs font-bold tracking-widest text-red-400 uppercase";
+            }
+        }
+
+        function renderHistory() {
+            if (state.tripData.length === 0) {
+                els.historyList.innerHTML = `
+                    <div class="text-center py-20 text-slate-600">
+                        <i data-lucide="activity" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
+                        <p class="text-sm">Aucune donnée.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            const html = state.tripData.map(pt => `
+                <div class="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-xl text-sm text-center items-center hover:bg-white/10 transition-colors border border-white/5">
+                    <div class="text-slate-300 font-mono text-xs">${pt.time}</div>
+                    <div class="font-bold text-white">${pt.speed}</div>
+                    <div class="font-medium ${pt.rpm > 4000 ? 'text-orange-400' : 'text-emerald-400'}">${pt.rpm}</div>
+                    <div class="text-slate-400 font-bold">${pt.gear}</div>
+                </div>
+            `).join('');
+            
+            els.historyList.innerHTML = html;
+        }
+
+        function renderSettingsInputs() {
+            let html = '';
+            for (let g = 1; g <= 6; g++) {
+                html += `
+                    <div class="space-y-1">
+                        <label class="text-[10px] text-slate-500 font-bold uppercase ml-1">Rapport ${g}</label>
+                        <input type="number" step="0.01" value="${state.ratios[g]}" 
+                            onchange="updateRatio(${g}, this.value)"
+                            class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono">
+                    </div>`;
+            }
+            els.ratiosInputs.innerHTML = html;
+        }
+
+        // --- ACTIONS UTILISATEUR ---
+        
+        function toggleRecording() {
+            state.isRecording = !state.isRecording;
+            const btn = els.recordBtn;
+            if (state.isRecording) {
+                btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-red-500 text-white shadow-lg shadow-red-500/30 active:scale-95 animate-pulse";
+                btn.innerHTML = `<i data-lucide="square" class="w-4 h-4 fill-current"></i><span>STOP</span>`;
+            } else {
+                btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95";
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i><span>REC</span>`;
+            }
+            lucide.createIcons();
+        }
+
+        function switchTab(tab) {
+            const dashView = document.getElementById('view-dashboard');
+            const histView = document.getElementById('view-history');
+            const navDash = document.getElementById('nav-dash');
+            const navHist = document.getElementById('nav-hist');
+
+            if (tab === 'dashboard') {
+                dashView.classList.remove('hidden');
+                histView.classList.add('hidden');
+                
+                navDash.className = "flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all bg-white text-black shadow-lg";
+                navHist.className = "flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all text-slate-400 hover:text-white";
+            } else {
+                dashView.classList.add('hidden');
+                histView.classList.remove('hidden');
+                renderHistory(); // Refresh list
+
+                navDash.className = "flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all text-slate-400 hover:text-white";
+                navHist.className = "flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold transition-all bg-white text-black shadow-lg";
+            }
+        }
+
+        async function toggleWakeLock() {
+            const btn = els.wakeLockBtn;
+            if (state.wakeLock) {
+                await state.wakeLock.release();
+                state.wakeLock = null;
+                btn.className = "w-full py-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide transition-all bg-white/5 text-slate-400 hover:bg-white/10 border border-transparent";
+                btn.innerHTML = `<i data-lucide="unlock" class="w-4 h-4"></i><span>Activer Mode Conduite</span>`;
+            } else {
+                try {
+                    state.wakeLock = await navigator.wakeLock.request('screen');
+                    btn.className = "w-full py-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]";
+                    btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i><span>Mode Conduite Actif (Écran ON)</span>`;
+                    
+                    state.wakeLock.addEventListener('release', () => {
+                        state.wakeLock = null;
+                        toggleWakeLock(); // Reset UI logic
+                    });
+                } catch (err) {
+                    console.error(err);
+                    alert("Le mode 'écran toujours allumé' n'est pas supporté ou a été refusé.");
+                }
+            }
+            lucide.createIcons();
+        }
+
+        function toggleSettings(show) {
+            const modal = document.getElementById('settings-modal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function updateRatio(gear, val) {
+            state.ratios[gear] = parseFloat(val) || 0;
+            localStorage.setItem('twingo_ratios', JSON.stringify(state.ratios));
+        }
+
+        function resetRatios() {
+            state.ratios = { ...DEFAULT_RATIOS };
+            localStorage.setItem('twingo_ratios', JSON.stringify(state.ratios));
+            renderSettingsInputs();
+        }
+
+        function clearHistory() {
+            if (confirm("Supprimer tout l'historique ?")) {
+                state.tripData = [];
+                localStorage.setItem('twingo_trip_history', JSON.stringify([]));
+                renderHistory();
+                els.pointsCount.textContent = 0;
+            }
+        }
+
+        function exportCSV() {
+            if (state.tripData.length === 0) return alert("Rien à exporter !");
+            
+            const headers = ["Heure", "Vitesse (km/h)", "RPM", "Rapport", "Latitude", "Longitude"];
+            const rows = state.tripData.map(row => 
+                [row.time, row.speed, row.rpm, row.gear, row.lat, row.lon].join(";")
+            );
+            
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + headers.join(";") + "\n" 
+                + rows.join("\n");
+                
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `trajet_twingo_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Boot
+        window.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
