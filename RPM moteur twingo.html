@@ -1,294 +1,283 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Compte-tour V5</title>
-  <style>
-    :root {
-      /* Seuils par rapport (en tr/min) */
-      --rpm-up-normal-1: 2100;
-      --rpm-up-normal-2: 2150;
-      --rpm-up-normal-3: 2150;
-      --rpm-up-normal-4: 2150;
-      --rpm-up-normal-5: 5000;
-      --rpm-down-normal-1: 1050;
-      --rpm-down-normal-2: 1100;
-      --rpm-down-normal-3: 1400;
-      --rpm-down-normal-4: 1500;
-      --rpm-down-normal-5: 1500;
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Settings, X, Lock, Unlock, Zap, Gauge, Info } from 'lucide-react';
 
-      --rpm-up-sport-1: 3000;
-      --rpm-up-sport-2: 3000;
-      --rpm-up-sport-3: 3000;
-      --rpm-up-sport-4: 3000;
-      --rpm-up-sport-5: 4000;
-      --rpm-down-sport-1: 2000;
-      --rpm-down-sport-2: 2500;
-      --rpm-down-sport-3: 2500;
-      --rpm-down-sport-4: 2500;
-      --rpm-down-sport-5: 2500;
-
-      /* Couleurs et mise en forme */
-      --bg-page      : #000;
-      --text-page    : #fff;
-      --bg-center    : #000;
-      --text-center  : #fff;
-      --bg-history   : #000;
-      --text-history : #000;
-      --bg-stats     : #000;
-      --text-stats   : #fff;
-
-      /* Tailles fluides */
-      --font-base      : 4vw;
-      --font-title     : 5vw;
-      --font-mode      : 4vw;
-      --font-value     : 15.5vw;
-      --font-stats-val : 6.5vw;
-
-      --gap    : 1.7vw;
-      --pad    : 2.7vw;
-      --radius : 4vw;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow-x: hidden;
-    }
-    body {
-      padding: var(--pad);
-      font-family: Arial, sans-serif;
-      background: var(--bg-page);
-      color: var(--text-page);
-      font-size: var(--font-base);
-      line-height: 1.2;
-    }
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: var(--gap);
-      width: 100%;
-    }
-    h1 { margin: 0; text-align: center; font-size: var(--font-title); }
-    #section-select {
-      width: 100%;
-      padding: var(--pad);
-      font-size: var(--font-base);
-      border-radius: var(--radius);
-      border: 1px solid #ccc;
-      background: #fff;
-      color: #000;
-    }
-    .section {
-      display: none;
-      padding: var(--pad);
-      border-radius: var(--radius);
-      background: #111;
-    }
-    #center { background: var(--bg-center); color: var(--text-center); }
-    #history { background: var(--bg-history); color: var(--text-history); }
-    #stats   { background: var(--bg-stats);   color: var(--text-stats);   }
-
-    #center .value {
-      font-size: var(--font-value);
-      text-align: center;
-      margin: var(--gap) 0;
-    }
-    #center #modes {
-      display: flex;
-      justify-content: center;
-      gap: var(--gap);
-      flex-wrap: wrap;
-    }
-    #center #modes button {
-      flex: 1 1 40%;
-      padding: var(--pad);
-      font-size: var(--font-mode);
-      border: none;
-      border-radius: var(--radius);
-      background: #ccc;
-      color: #000;
-      cursor: pointer;
-      transition: background .2s;
-      min-width: 40%;
-    }
-    #center #modes button.active {
-      background: var(--bg-center);
-      color: var(--text-center);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: var(--gap);
-      font-size: var(--font-base);
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: calc(var(--pad)/2);
-      text-align: center;
-    }
-    th { background: #222; color: #fff; }
-    #stats p {
-      font-size: var(--font-stats-val);
-      margin: calc(var(--gap)/2) 0;
-    }
-    #stats p span { font-weight: bold; }
-    @media (min-width: 480px) {
-      :root {
-        --font-base      : 1.5rem;
-        --font-title     : 2.5rem;
-        --font-mode      : 1.7rem;
-        --font-value     : 5rem;
-        --font-stats-val : 2rem;
-        --gap            : 1rem;
-        --pad            : 0.5rem;
-        --radius         : 8px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Compte-tour</h1>
-    <select id="section-select">
-      <option value="center">Compte-tour</option>
-      <option value="history">Historique</option>
-      <option value="stats">Valeurs</option>
-    </select>
-
-    <div id="center" class="section">
-      <div id="modes">
-        <button id="mode-normal" class="active">Normal</button>
-        <button id="mode-sport">Sport</button>
-      </div>
-      <p id="gear-value" class="value">—</p>
-      <p id="rpm-value" class="value">— tr/min</p>
-    </div>
-
-    <div id="history" class="section">
-      <button id="export-btn">Exporter trajets</button>
-      <table id="history-table">
-        <thead><tr><th>Date</th><th>Dist. (km)</th><th>Rég. moy</th><th>Rég. max</th><th>Vit. moy</th><th>Vit. max</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div id="stats" class="section">
-      <p>Régime max   : <span id="max-rpm">—</span> tr/min</p>
-      <p>Régime moyen : <span id="avg-rpm">—</span> tr/min</p>
-      <p>Vitesse max  : <span id="max-speed">—</span> km/h</p>
-      <p>Vitesse moy  : <span id="avg-speed">—</span> km/h</p>
-      <p>Distance     : <span id="distance">—</span> km</p>
-      <p>Chgt rapport : <span id="shift-count">0</span></p>
-      <button id="reset-trip">Reset trajet</button>
-    </div>
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl ${className}`}>
+    {children}
   </div>
+);
 
-  <script>
-    // Historique
-    let historyArr = JSON.parse(localStorage.getItem('trajets') || '[]');
-    const histBody = document.querySelector('#history-table tbody');
-    function renderHistory() {
-      histBody.innerHTML = '';
-      historyArr.forEach(t => {
-        const tr = document.createElement('tr');
-        ['date','distance','avgRpm','maxRpm','avgSpeed','maxSpeed'].forEach(k => {
-          const td = document.createElement('td'); td.textContent = t[k]; tr.appendChild(td);
-        });
-        histBody.appendChild(tr);
-      });
-    }
-    renderHistory();
-    let lastExport = historyArr.length;
+const Button = ({ onClick, active, children, icon: Icon }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-300 ${
+      active 
+        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+        : 'bg-white/10 text-white/70 hover:bg-white/20'
+    }`}
+  >
+    {Icon && <Icon size={18} />}
+    {children}
+  </button>
+);
 
-    // Navigation
-    const sections = { center:document.getElementById('center'), history:document.getElementById('history'), stats:document.getElementById('stats') };
-    document.getElementById('section-select').onchange = e => {
-      Object.values(sections).forEach(s=>s.style.display='none');
-      sections[e.target.value].style.display='block';
-    };
-    sections.center.style.display = 'block';
+export default function TwingoDash() {
+  // --- STATE ---
+  const [speed, setSpeed] = useState(0);
+  const [rpm, setRpm] = useState(0);
+  const [currentGear, setCurrentGear] = useState(1);
+  const [gpsActive, setGpsActive] = useState(false);
+  const [wakeLock, setWakeLock] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Valeurs par défaut Twingo (km/h pour 1000 tr/min)
+  const defaultRatios = { 1: 7.45, 2: 13.45, 3: 18.97, 4: 24.35, 5: 30.55, 6: 36.08 };
+  
+  const [ratios, setRatios] = useState(defaultRatios);
+  const [minRpm, setMinRpm] = useState(1500);
+  const [maxRpm, setMaxRpm] = useState(3000);
 
-    // Démultiplications
-    const v1000 = {1:7.45,2:13.45,3:18.97,4:24.35,5:30.55};
+  // --- LOCAL STORAGE ---
+  useEffect(() => {
+    // Chargement au démarrage
+    const savedRatios = localStorage.getItem('twingo_ratios');
+    if (savedRatios) setRatios(JSON.parse(savedRatios));
+  }, []);
 
-    // Chargement des seuils
-    function loadThresholds(mode) {
-      const up = {}, down = {};
-      for (let g=1; g<=5; g++) {
-        up[g]   = +getComputedStyle(document.documentElement).getPropertyValue(`--rpm-up-${mode}-${g}`);
-        down[g] = +getComputedStyle(document.documentElement).getPropertyValue(`--rpm-down-${mode}-${g}`);
+  useEffect(() => {
+    // Sauvegarde à chaque changement
+    localStorage.setItem('twingo_ratios', JSON.stringify(ratios));
+  }, [ratios]);
+
+  // --- LOGIC ---
+  const determineGear = useCallback((currentSpeed) => {
+    if (currentSpeed < 5) return 1; // Au repos ou très lent
+
+    let bestGear = 1;
+    let bestScore = Infinity;
+
+    for (let g = 1; g <= 6; g++) {
+      const calculatedRpm = (currentSpeed * 1000) / ratios[g];
+      
+      // Si dans la plage idéale, c'est le candidat parfait
+      if (calculatedRpm >= minRpm && calculatedRpm <= maxRpm) return g;
+
+      // Sinon on cherche le rapport qui nous rapproche le plus de la plage
+      const score = Math.min(
+        Math.abs(calculatedRpm - minRpm),
+        Math.abs(calculatedRpm - maxRpm)
+      );
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestGear = g;
       }
-      return { up, down };
     }
+    return bestGear;
+  }, [ratios, minRpm, maxRpm]);
 
-    // État global
-    let mode='normal', thresholds=loadThresholds('normal'), lastGear=null;
-    const btnN=document.getElementById('mode-normal'), btnS=document.getElementById('mode-sport');
-    btnN.onclick = () => { mode='normal'; thresholds=loadThresholds(mode); lastGear=null; toggleButtons(); };
-    btnS.onclick = () => { mode='sport';  thresholds=loadThresholds(mode); lastGear=null; toggleButtons(); };
-    function toggleButtons() {
-      btnN.classList.toggle('active', mode==='normal');
-      btnS.classList.toggle('active', mode==='sport');
+  // --- GPS LOOP ---
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGpsActive(true);
+        let speedMs = pos.coords.speed; // Vitesse en m/s
+        
+        // Parfois le GPS renvoie null si immobile
+        if (speedMs === null || speedMs < 0) speedMs = 0;
+        
+        const speedKmh = speedMs * 3.6;
+        setSpeed(speedKmh);
+
+        const gear = determineGear(speedKmh);
+        setCurrentGear(gear);
+        
+        const calculatedRpm = (speedKmh * 1000) / ratios[gear];
+        setRpm(Math.round(calculatedRpm));
+      },
+      (err) => {
+        console.error("GPS Error", err);
+        setGpsActive(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [ratios, determineGear]);
+
+  // --- WAKE LOCK (Anti-Veille) ---
+  const toggleWakeLock = async () => {
+    if (wakeLock) {
+      await wakeLock.release();
+      setWakeLock(null);
+    } else {
+      try {
+        const lock = await navigator.wakeLock.request('screen');
+        setWakeLock(lock);
+        // Le lock peut être relâché par le système (ex: changement d'app)
+        lock.addEventListener('release', () => {
+          setWakeLock(null);
+        });
+      } catch (err) {
+        console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      }
     }
-    toggleButtons();
+  };
 
-    // Détermination du rapport
-    function determineGear(sp) {
-      if (sp<5.5) { lastGear=null; return null; }
-      if (lastGear==null) { lastGear=1; return 1; }
-      const g = lastGear;
-      const speedUp   = thresholds.up[g]*v1000[g]/1000;
-      const speedDown = thresholds.down[g]*v1000[g]/1000;
-      if (sp>speedUp && g<5) lastGear++;
-      else if (sp<speedDown && g>1) lastGear--;
-      return lastGear;
-    }
-    function calcRpm(sp,g){ return (sp<5.5||g==null)?900:Math.round(sp*1000/v1000[g]); }
+  // --- RENDER HELPERS ---
+  const getRpmColor = (val) => {
+    if (val < 2000) return 'text-emerald-400';
+    if (val < 3500) return 'text-blue-400';
+    if (val < 5000) return 'text-orange-400';
+    return 'text-red-500 animate-pulse';
+  };
 
-    // Affichage temps réel
-    const gearEl=document.getElementById('gear-value'), rpmEl=document.getElementById('rpm-value');
-    let speedData=[], rpmData=[], shiftCount=0, cumDist=0;
-    function updateDisplay(sp){
-      const g=determineGear(sp), r=calcRpm(sp,g);
-      gearEl.textContent = g!=null?g:'—';
-      rpmEl.textContent  = r+' tr/min';
-      if (sp!=null) { speedData.push(sp); rpmData.push(r); cumDist+=sp/3600; if (rpmData.length>1 && g!=null && r<rpmData[rpmData.length-2]) shiftCount++; }
-      document.getElementById('max-rpm').textContent   = rpmData.length?Math.max(...rpmData):'—';
-      document.getElementById('avg-rpm').textContent   = rpmData.length?(rpmData.reduce((a,b)=>a+b)/rpmData.length).toFixed(0):'—';
-      document.getElementById('max-speed').textContent = speedData.length?Math.max(...speedData).toFixed(1):'—';
-      document.getElementById('avg-speed').textContent = speedData.length?(	speedData.reduce((a,b)=>a+b)/speedData.length).toFixed(1):'—';
-      document.getElementById('distance').textContent  = cumDist.toFixed(2);
-      document.getElementById('shift-count').textContent = shiftCount;
-    }
+  const getProgress = (val, max) => Math.min((val / max) * 100, 100);
 
-    // Géolocalisation
-    if ('geolocation' in navigator) {
-      navigator.geolocation.watchPosition(pos => { let s=pos.coords.speed; if(s!=null)s*=3.6; updateDisplay(s); }, console.error, { enableHighAccuracy:true, maximumAge:500, timeout:5000 });
-    } else rpmEl.textContent='GPS non dispo';
+  return (
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-10">
+      
+      {/* Background Ambience */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[20%] -left-[10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[10%] -right-[10%] w-[400px] h-[400px] bg-purple-600/20 rounded-full blur-[100px]" />
+      </div>
 
-    // Reset trajet
-    document.getElementById('reset-trip').onclick = () => {
-      if (!rpmData.length) return;
-      historyArr.push({ date:new Date().toLocaleString(), distance:cumDist.toFixed(2), avgRpm:Math.round(rpmData.reduce((a,b)=>a+b)/rpmData.length), maxRpm:Math.max(...rpmData), avgSpeed:(	speedData.reduce((a,b)=>a+b)/	speedData.length).toFixed(1), maxSpeed:Math.max(...speedData).toFixed(1) });
-      localStorage.setItem('trajets',JSON.stringify(historyArr));
-      speedData=[], rpmData=[], shiftCount=0, cumDist=0, lastGear=null;
-      renderHistory();
-    };
+      {/* Header */}
+      <header className="relative z-10 flex justify-between items-center p-6">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${gpsActive ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'}`} />
+          <span className="text-sm font-medium tracking-wide text-slate-400">
+            {gpsActive ? 'GPS CONNECTÉ' : 'RECHERCHE GPS...'}
+          </span>
+        </div>
+        <button 
+          onClick={() => setShowSettings(true)}
+          className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
+        >
+          <Settings size={20} className="text-slate-300" />
+        </button>
+      </header>
 
-    // Export CSV
-    document.getElementById('export-btn').onclick = () => {
-      const newTrips=historyArr.slice(lastExport);
-      if(!newTrips.length){ alert('Aucun nouveau trajet'); return; }
-      let csv='Date;Distance;Régime moyen;Régime max;Vitesse moyenne;Vitesse max\n';
-      newTrips.forEach(t=>{ csv+=`${t.date};${t.distance};${t.avgRpm};${t.maxRpm};${t.avgSpeed};${t.maxSpeed}\n`; });
-      const blob=new Blob([csv],{type:'text/csv'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download='trajets.csv'; a.click(); URL.revokeObjectURL(url);
-      lastExport = historyArr.length;
-    };
-  </script>
-</body>
-</html>
+      <main className="relative z-10 px-6 max-w-md mx-auto space-y-6">
+        
+        {/* Main Display: RPM */}
+        <div className="text-center py-8">
+          <div className="relative inline-flex flex-col items-center justify-center w-64 h-64">
+            {/* RPM Circle Track */}
+            <svg className="absolute w-full h-full transform -rotate-90">
+              <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-800" />
+              <circle 
+                cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="12" fill="transparent"
+                className={`${getRpmColor(rpm)} transition-all duration-500 ease-out`}
+                strokeDasharray={2 * Math.PI * 120}
+                strokeDashoffset={2 * Math.PI * 120 - (2 * Math.PI * 120 * getProgress(rpm, 7000)) / 100}
+                strokeLinecap="round"
+              />
+            </svg>
+            
+            <div className="flex flex-col items-center z-10">
+              <span className={`text-6xl font-bold tracking-tighter ${getRpmColor(rpm)} tabular-nums`}>
+                {rpm}
+              </span>
+              <span className="text-slate-400 text-sm font-medium mt-1">tr/min</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Gear & Speed Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="flex flex-col items-center justify-center h-40">
+            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Rapport</span>
+            <div className="text-7xl font-bold text-white tabular-nums">
+              {currentGear}
+            </div>
+            <div className="text-xs text-blue-400 mt-1 font-medium">ESTIMÉ</div>
+          </Card>
+
+          <Card className="flex flex-col items-center justify-center h-40 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent" />
+            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Vitesse</span>
+            <div className="text-5xl font-bold text-white tabular-nums">
+              {Math.round(speed)}
+            </div>
+            <div className="text-sm text-slate-400 font-medium">km/h</div>
+          </Card>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center pt-4">
+          <Button 
+            onClick={toggleWakeLock} 
+            active={!!wakeLock}
+            icon={!!wakeLock ? Lock : Unlock}
+          >
+            {!!wakeLock ? 'Mode Conduite (Écran actif)' : 'Mode Conduite (Désactivé)'}
+          </Button>
+        </div>
+
+        {/* Disclaimer */}
+        <p className="text-xs text-slate-600 text-center px-8">
+          Gardez les yeux sur la route. Valeurs estimées basées sur le GPS.
+        </p>
+      </main>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-10 duration-300">
+            
+            <div className="flex justify-between items-center p-6 border-b border-white/5">
+              <h2 className="text-xl font-bold text-white">Garage</h2>
+              <button onClick={() => setShowSettings(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10">
+                <X size={20} className="text-white" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-400 mb-2">
+                  <Gauge size={18} />
+                  <span className="font-bold text-sm uppercase tracking-wider">Rapports de Boîte</span>
+                </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  Vitesse en km/h pour 1000 tr/min. Ces valeurs sont sauvegardées automatiquement.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map(g => (
+                    <div key={g} className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium ml-1">Rapport {g}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={ratios[g]}
+                        onChange={(e) => setRatios({...ratios, [g]: parseFloat(e.target.value) || 0})}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5">
+                <button 
+                  onClick={() => setRatios(defaultRatios)}
+                  className="w-full py-3 text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
+                >
+                  Réinitialiser aux valeurs Twingo
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
