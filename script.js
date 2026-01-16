@@ -309,5 +309,162 @@ function exportCSV() {
     document.body.removeChild(link);
 }
 
+// ============================================================
+//          GESTION DES MISES À JOUR (GITHUB API)
+// ============================================================
+
+// 1. CONFIGURATION (A REMPLACER PAR TES INFOS)
+const GITHUB_CONFIG = { 
+    username: 'antoto2021',
+    repo: 'Appli-Compte-tour-twingo'
+};
+
+const STORAGE_KEY_HASH = 'twingo_version_hash';
+const STORAGE_KEY_TIME = 'twingo_update_timestamp';
+
+// 2. FONCTION : Récupérer le dernier commit sur GitHub
+async function fetchLatestCommit() {
+    try {
+        // Ajout d'un timestamp pour éviter le cache navigateur
+        const url = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/commits?per_page=1&t=${Date.now()}`;
+        const r = await fetch(url);
+        
+        if (r.status === 404) return 'repo_not_found';
+        if (!r.ok) throw new Error("Erreur réseau GitHub");
+        
+        const d = await r.json();
+        return d[0]; 
+    } catch (e) {
+        console.warn("GitHub inaccessible (Hors ligne ?)", e);
+        return null;
+    }
+}
+
+// 3. FONCTION : Vérifier les mises à jour
+async function checkGitHubUpdates(isBackgroundCheck = false) {
+    const remoteEl = document.getElementById('info-remote-version');
+    const statusDot = document.getElementById('connection-status');
+    const btn = document.getElementById('btn-update-check');
+
+    // UI : Chargement
+    if (!isBackgroundCheck) {
+        if(remoteEl) remoteEl.innerText = "Connexion...";
+        if(statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse";
+        if(btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Recherche...</span>`;
+            lucide.createIcons();
+        }
+    }
+
+    const commit = await fetchLatestCommit();
+
+    // UI : Reset Bouton
+    if (!isBackgroundCheck && btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Rechercher une mise à jour</span>`;
+        lucide.createIcons();
+    }
+
+    // Erreurs
+    if (commit === 'repo_not_found') {
+        if (!isBackgroundCheck) alert("Erreur : Repo GitHub introuvable.");
+        if (statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+        return;
+    }
+    if (!commit) {
+        if (!isBackgroundCheck) {
+            if(remoteEl) remoteEl.innerText = "Hors ligne";
+            if(statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-slate-600";
+        }
+        return;
+    }
+
+    // Succès
+    const remoteHash = commit.sha;
+    const localHash = localStorage.getItem(STORAGE_KEY_HASH);
+
+    if(remoteEl) remoteEl.innerText = `Commit: ${remoteHash.substring(0, 7)}`;
+    if(statusDot) statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]";
+
+    // Premier lancement
+    if (!localHash) {
+        localStorage.setItem(STORAGE_KEY_HASH, remoteHash);
+        localStorage.setItem(STORAGE_KEY_TIME, Date.now());
+        updateLocalInfoDisplay();
+    } 
+    // Mise à jour dispo
+    else if (localHash !== remoteHash) {
+        const alertBox = document.getElementById('updateAlert');
+        alertBox.classList.remove('hidden');
+        alertBox.classList.add('flex');
+        
+        if(remoteEl) remoteEl.innerHTML = `${remoteHash.substring(0, 7)} <span class="bg-blue-500 text-white text-[9px] px-1.5 py-0.5 rounded ml-1">NEW</span>`;
+    } else {
+        if (!isBackgroundCheck) alert("TwingoDash est à jour !");
+    }
+}
+
+// 4. FONCTION : Forcer la mise à jour
+function forceUpdate() {
+    const btn = document.getElementById('refreshBtn');
+    if(btn) {
+        btn.innerHTML = "CHARGEMENT...";
+        btn.classList.add('rotating'); 
+    }
+
+    fetchLatestCommit().then(commit => {
+        if (commit && typeof commit === 'object') {
+            localStorage.setItem(STORAGE_KEY_HASH, commit.sha);
+            localStorage.setItem(STORAGE_KEY_TIME, Date.now());
+        }
+        // Force le rechargement serveur (ignorer cache)
+        window.location.reload(true);
+    });
+}
+
+// 5. FONCTION : Affichage infos locales
+function updateLocalInfoDisplay() {
+    const localHash = localStorage.getItem(STORAGE_KEY_HASH);
+    const localTime = localStorage.getItem(STORAGE_KEY_TIME);
+    
+    const elVer = document.getElementById('info-app-version');
+    const elTime = document.getElementById('info-local-time');
+
+    if(elVer) elVer.innerText = localHash ? localHash.substring(0, 7) : 'Non installé';
+    
+    if (elTime && localTime) {
+        const date = new Date(parseInt(localTime));
+        elTime.innerText = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+    }
+}
+
+// Gestion des Modales (Overlay)
+window.closeInfoModal = function() {
+    document.getElementById('info-modal-overlay').classList.add('hidden');
+    // Rouvrir les réglages si on veut revenir en arrière
+    toggleSettings(true);
+};
+
+window.openInfoModal = function() {
+    // Fermer les réglages d'abord
+    toggleSettings(false);
+    
+    document.getElementById('info-modal-overlay').classList.remove('hidden');
+    updateLocalInfoDisplay();
+    checkGitHubUpdates(false); // Check manuel
+    lucide.createIcons();
+};
+
+// Vérification auto au démarrage (après 2s)
+window.addEventListener('load', () => {
+    updateLocalInfoDisplay();
+    setTimeout(() => checkGitHubUpdates(true), 2000);
+});
+
+// Exposer pour le HTML
+window.checkGitHubUpdates = checkGitHubUpdates;
+window.forceUpdate = forceUpdate;
+
 // Boot
 window.addEventListener('DOMContentLoaded', init);
