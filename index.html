@@ -154,12 +154,70 @@
             <div class="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
                 <p class="text-xs text-slate-400">Ratio vitesse (km/h) pour 1000 tr/min. Sauvegarde automatique.</p>
                 
-                <div id="ratios-inputs" class="grid grid-cols-2 gap-4">
-                    </div>
+                <div id="ratios-inputs" class="grid grid-cols-2 gap-4"></div>
+
+                <button onclick="window.openInfoModal()" class="w-full py-3 mb-4 bg-white/5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold text-slate-300 hover:bg-white/10 transition-colors border border-white/5">
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                    <span>Vérifier les mises à jour</span>
+                </button>
 
                 <button onclick="resetRatios()" class="w-full py-4 text-sm text-red-400 hover:text-red-300 font-bold uppercase tracking-wider transition-colors border-t border-white/5 mt-4">
                     Réinitialiser valeurs par défaut
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="updateAlert" class="fixed bottom-4 left-4 right-4 glass border-blue-500/30 bg-blue-900/80 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center z-[60] hidden animate-slide-up">
+        <div class="flex items-center gap-3">
+            <span class="bg-blue-600 p-2 rounded-full shadow-lg shadow-blue-600/50">
+                <i data-lucide="download-cloud" class="w-5 h-5 text-white"></i>
+            </span>
+            <div>
+                <p class="font-bold text-sm">Mise à jour disponible !</p>
+                <p class="text-[10px] text-blue-200">Nouvelle version détectée sur GitHub.</p>
+            </div>
+        </div>
+        <button id="refreshBtn" onclick="window.forceUpdate()" class="bg-white text-blue-900 font-bold px-4 py-2 rounded-xl text-xs shadow-lg hover:bg-blue-50 transition-colors">
+            INSTALLER
+        </button>
+    </div>
+
+    <div id="info-modal-overlay" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-scale-in relative">
+            
+            <div class="flex justify-between items-center p-6 border-b border-white/5 bg-white/5">
+                <h3 class="text-xl font-bold text-white">Système</h3>
+                <button onclick="window.closeInfoModal()" class="p-2 bg-white/5 rounded-full hover:bg-white/10 text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">GitHub</span>
+                    <div class="flex items-center gap-2">
+                        <span id="info-remote-version" class="text-xs text-slate-500 font-mono">Vérification...</span>
+                        <div id="connection-status" class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Installé</span>
+                    <div class="text-right">
+                        <div id="info-app-version" class="text-xs font-bold text-emerald-400 font-mono">...</div>
+                        <div id="info-local-time" class="text-[10px] text-slate-500 mt-1">...</div>
+                    </div>
+                </div>
+
+                <button id="btn-update-check" onclick="window.checkGitHubUpdates(false)" class="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>Rechercher une mise à jour</span>
+                </button>
+                
+                <div class="text-center mt-6">
+                    <p class="text-[10px] text-slate-600 font-bold uppercase tracking-widest">TwingoDash iOS v1.0</p>
+                </div>
             </div>
         </div>
     </div>
