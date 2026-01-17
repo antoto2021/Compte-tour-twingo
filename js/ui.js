@@ -24,19 +24,14 @@ export function updateDashboard() {
     els.rpmValue.textContent = state.rpm;
 
     // GESTION AFFICHAGE RAPPORT ET MODE
-    // On affiche le rapport, et on peut colorer le "ESTIMÉ" selon le mode
-    els.gearValue.textContent = state.gear;
-    
-    const labelEstimated = els.gearValue.parentElement.querySelector('.text-blue-500'); // Le petit texte "ESTIMÉ"
+    const labelEstimated = els.gearValue.parentElement.querySelector('.text-blue-500'); 
     
     if (state.mode === 'SPORT') {
-        // En mode sport, on change le style
         if(labelEstimated) {
             labelEstimated.textContent = "SPORT";
             labelEstimated.className = "text-red-500 text-[10px] font-bold mt-1 animate-pulse";
         }
     } else {
-        // En mode Eco
         if(labelEstimated) {
             labelEstimated.textContent = "ECO";
             labelEstimated.className = "text-emerald-500 text-[10px] font-bold mt-1";
@@ -57,7 +52,12 @@ export function updateDashboard() {
     const offset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
     els.rpmCircle.style.strokeDashoffset = offset;
     
-    els.pointsCount.textContent = state.tripData.length; // Note: Ceci sera écrasé par la distance en mode REC, c'est normal.
+    // CORRECTION ICI : On ne touche PAS à els.pointsCount ici si on enregistre.
+    // C'est main.js qui s'occupe de mettre à jour la distance en temps réel.
+    // Si on n'enregistre pas, on peut afficher 0.00 km ou le dernier score.
+    if (!state.isRecording && state.currentTrip.distanceMeters === 0) {
+         els.pointsCount.textContent = "0.00 km";
+    }
 
     // Couleur du Neutre
     if (state.gear === 'N') {
