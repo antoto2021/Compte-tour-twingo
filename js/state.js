@@ -3,6 +3,10 @@ import { DEFAULT_RATIOS } from './config.js';
 
 export let state = {
     speed: 0,
+    prevSpeed: 0,      // Pour calculer l'accélération
+    acceleration: 0,   // Accélération actuelle (km/h par seconde)
+    mode: 'ECO',       // 'ECO' ou 'SPORT'
+    sportModeTimer: 0, // Timestamp pour savoir quand revenir en ECO
     rpm: 0,
     gear: 1,
     gpsActive: false,
@@ -10,7 +14,8 @@ export let state = {
     tripData: [],
     ratios: { ...DEFAULT_RATIOS },
     wakeLock: null,
-    lastRecordTime: 0
+    lastRecordTime: 0,
+    lastGpsTime: 0     // Pour calculer le delta de temps précis
 };
 
 // Fonctions pour modifier le state proprement
