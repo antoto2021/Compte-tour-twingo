@@ -439,6 +439,39 @@ function updateLocalInfoDisplay() {
     }
 }
 
+// 6. FONCTION : BOUTON NAVIGATION (RAFRAÎCHIR)
+async function handleBottomNavRefresh() {
+    const icon = document.getElementById('nav-refresh-icon');
+    
+    // 1. Activer l'animation de rotation
+    icon.classList.add('rotating'); // Utilise la classe CSS définie précédemment
+
+    // 2. Vérifier les mises à jour GitHub (mode background = true pour ne pas afficher de popup "à jour")
+    // On attend la réponse de GitHub...
+    await checkGitHubUpdates(true);
+
+    // 3. Vérifier si la bannière de mise à jour est apparue
+    const alertBox = document.getElementById('updateAlert');
+    const updateFound = alertBox && !alertBox.classList.contains('hidden');
+
+    if (updateFound) {
+        // CAS A : Une mise à jour est dispo
+        // On arrête l'animation et on NE recharge PAS la page 
+        // (pour laisser l'utilisateur cliquer sur "INSTALLER" dans la bannière)
+        icon.classList.remove('rotating');
+        
+        // Petit effet visuel pour attirer l'attention sur la bannière
+        alertBox.classList.add('animate-pulse');
+        setTimeout(() => alertBox.classList.remove('animate-pulse'), 1000);
+        
+    } else {
+        // CAS B : Pas de mise à jour
+        // On recharge la page pour rafraîchir les données (API, cache, etc.)
+        window.location.reload();
+    }
+}
+
+
 // Gestion des Modales (Overlay)
 window.closeInfoModal = function() {
     document.getElementById('info-modal-overlay').classList.add('hidden');
