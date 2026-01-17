@@ -57,7 +57,7 @@ export function updateDashboard() {
     const offset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
     els.rpmCircle.style.strokeDashoffset = offset;
     
-    els.pointsCount.textContent = state.tripData.length;
+    els.pointsCount.textContent = state.tripData.length; // Note: Ceci sera écrasé par la distance en mode REC, c'est normal.
 
     // Couleur du Neutre
     if (state.gear === 'N') {
@@ -122,18 +122,6 @@ export function renderHistory() {
     els.historyList.innerHTML = html;
 }
 
-    const html = state.tripData.map(pt => `
-        <div class="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-xl text-sm text-center items-center hover:bg-white/10 transition-colors border border-white/5">
-            <div class="text-slate-300 font-mono text-xs">${pt.time}</div>
-            <div class="font-bold text-white">${pt.speed}</div>
-            <div class="font-medium ${pt.rpm > 4000 ? 'text-orange-400' : 'text-emerald-400'}">${pt.rpm}</div>
-            <div class="text-slate-400 font-bold">${pt.gear}</div>
-        </div>
-    `).join('');
-    
-    els.historyList.innerHTML = html;
-}
-
 export function renderSettingsInputs() {
     let html = '';
     for (let g = 1; g <= 6; g++) {
@@ -145,8 +133,6 @@ export function renderSettingsInputs() {
                     class="ratio-input w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono">
             </div>`;
     }
-    // Note: l'ajout du bouton "Update" et "Reset" est déjà dans le HTML statique, 
-    // ou généré ici si vous préférez. Ici on injecte juste les inputs.
     els.ratiosInputs.innerHTML = html;
 }
 
