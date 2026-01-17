@@ -23,6 +23,26 @@ export function updateDashboard() {
     els.gearValue.textContent = state.gear;
     els.rpmValue.textContent = state.rpm;
 
+    // GESTION AFFICHAGE RAPPORT ET MODE
+    // On affiche le rapport, et on peut colorer le "ESTIMÉ" selon le mode
+    els.gearValue.textContent = state.gear;
+    
+    const labelEstimated = els.gearValue.parentElement.querySelector('.text-blue-500'); // Le petit texte "ESTIMÉ"
+    
+    if (state.mode === 'SPORT') {
+        // En mode sport, on change le style
+        if(labelEstimated) {
+            labelEstimated.textContent = "SPORT";
+            labelEstimated.className = "text-red-500 text-[10px] font-bold mt-1 animate-pulse";
+        }
+    } else {
+        // En mode Eco
+        if(labelEstimated) {
+            labelEstimated.textContent = "ECO";
+            labelEstimated.className = "text-emerald-500 text-[10px] font-bold mt-1";
+        }
+    }
+
     // Couleurs RPM
     let colorClass = 'text-emerald-400';
     if (state.rpm > 3500) colorClass = 'text-blue-400';
