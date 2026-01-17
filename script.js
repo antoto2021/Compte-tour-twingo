@@ -1,9 +1,25 @@
 // --- CONSTANTES & CONFIG ---
 const DEFAULT_RATIOS = { 1: 7.45, 2: 13.45, 3: 18.97, 4: 24.35, 5: 30.55, 6: 36.08 };
-const MIN_RPM = 1500;
-const MAX_RPM = 3000;
-const MAX_GAUGE_RPM = 7000;
+
+// On garde celui-ci pour l'affichage graphique (le cercle)
+const MAX_GAUGE_RPM = 7000; 
 const CIRCUMFERENCE = 2 * Math.PI * 120; // r=120 dans le SVG
+
+// --- CONFIGURATION AVANCÉE (NOUVEAU) ---
+
+// Facteur de lissage (0.1 = lent, 0.9 = rapide)
+const SMOOTHING_FACTOR = 0.2;
+
+// Vos plages de rapports personnalisées
+// (Remplace les anciens MIN_RPM et MAX_RPM)
+const GEAR_LIMITS = {
+    1: { min: 0,    max: 2500 }, 
+    2: { min: 1000, max: 3000 },
+    3: { min: 1500, max: 3500 },
+    4: { min: 1800, max: 4000 },
+    5: { min: 2000, max: 8000 },
+    6: { min: 2000, max: 8000 }
+};
 
 // --- STATE ---
 let state = {
@@ -68,17 +84,56 @@ function handleGpsSuccess(pos) {
     }
 
     let speedMs = pos.coords.speed;
+    // Si le GPS renvoie null (arrêt) ou négatif, on met 0
     if (speedMs === null || speedMs < 0) speedMs = 0;
-    const speedKmh = speedMs * 3.6;
+    
+    // Conversion m/s en km/h
+    const rawKmh = speedMs * 3.6;
 
-    state.speed = speedKmh;
-    state.gear = determineGear(speedKmh);
-    state.rpm = Math.round((speedKmh * 1000) / state.ratios[state.gear]);
+    // ALGORITHME DE LISSAGE (Pour éviter les sauts du GPS)
+    // Si c'est la première valeur, on la prend direct
+    if (state.speed === 0 || Math.abs(state.speed - rawKmh) > 20) {
+        state.speed = rawKmh;
+    } else {
+        // Sinon, on fait une moyenne pondérée avec la vitesse précédente
+        // Formule : Nouvelle = (Brute * 20%) + (Ancienne * 80%)
+        state.speed = (rawKmh * SMOOTHING_FACTOR) + (state.speed * (1 - SMOOTHING_FACTOR));
+    }
 
-    // Enregistrement
+    // --- LOGIQUE DU RALENTI (IDLE) ---
+    // Si la vitesse est inférieure à 3 km/h, on considère qu'on est au point mort ou débrayé
+    if (state.speed < 3) {
+        state.gear = 'N'; // Affiche "N" pour Neutre
+        
+        // Simulation : Un ralenti n'est jamais parfaitement stable.
+        // On génère un nombre aléatoire entre 780 et 820 tr/min pour faire "vivre" l'aiguille
+        const idleBase = 800;
+        const variation = Math.floor(Math.random() * 40) - 20; // Varie de -20 à +20
+        state.rpm = idleBase + variation;
+
+    } else {
+        // --- LOGIQUE NORMALE (EN ROUANT) ---
+        
+        // Calcul du rapport selon VOS plages (la fonction qu'on a vue avant)
+        state.gear = determineGear(state.speed);
+        
+        // Calcul du RPM réel
+        const currentRatio = state.ratios[state.gear];
+        if (currentRatio > 0) {
+            state.rpm = Math.round((state.speed * 1000) / currentRatio);
+        } else {
+            state.rpm = 0;
+        }
+        
+        // Sécurité : Si jamais on roule mais qu'on tombe sous le ralenti (ex: 600 tr/min), 
+        // on force l'affichage à 800 pour ne pas que l'aiguille tombe à 0
+        if (state.rpm < 800) state.rpm = 800 + (Math.floor(Math.random() * 20));
+    }
+
+    // Enregistrement (Code inchangé pour l'historique...)
     if (state.isRecording) {
         const now = Date.now();
-        if (now - state.lastRecordTime > 1000) { // Max 1 point / sec
+        if (now - state.lastRecordTime > 1000) {
             const point = {
                 id: now,
                 time: new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
@@ -88,11 +143,10 @@ function handleGpsSuccess(pos) {
                 lat: pos.coords.latitude.toFixed(5),
                 lon: pos.coords.longitude.toFixed(5)
             };
-            state.tripData.unshift(point); // Ajout au début
+            state.tripData.unshift(point);
             state.lastRecordTime = now;
             localStorage.setItem('twingo_trip_history', JSON.stringify(state.tripData));
             
-            // Mise à jour partielle pour perf
             els.pointsCount.textContent = state.tripData.length;
             if (!document.getElementById('view-history').classList.contains('hidden')) {
                 renderHistory();
@@ -110,21 +164,48 @@ function handleGpsError(err) {
 }
 
 function determineGear(speed) {
+    // Sécurité arrêt
     if (speed < 5) return 1;
-    let bestGear = 1;
-    let bestScore = Infinity;
+
+    // On parcourt tous les rapports possibles (1 à 6)
+    // On cherche tous ceux qui sont "valides" selon vos plages
+    let validGears = [];
 
     for (let g = 1; g <= 6; g++) {
-        const calculatedRpm = (speed * 1000) / state.ratios[g];
-        if (calculatedRpm >= MIN_RPM && calculatedRpm <= MAX_RPM) return g;
-        
-        const score = Math.min(Math.abs(calculatedRpm - MIN_RPM), Math.abs(calculatedRpm - MAX_RPM));
-        if (score < bestScore) {
-            bestScore = score;
-            bestGear = g;
+        const ratio = state.ratios[g];
+        if (!ratio) continue;
+
+        // Quel serait le RPM à cette vitesse sur ce rapport ?
+        const testRpm = (speed * 1000) / ratio;
+
+        // Est-ce que ce RPM respecte vos limites min/max ?
+        const limits = GEAR_LIMITS[g];
+        if (limits && testRpm >= limits.min && testRpm <= limits.max) {
+            validGears.push(g);
         }
     }
-    return bestGear;
+
+    // LOGIQUE DE DÉCISION
+    
+    // Cas 1 : Aucun rapport ne correspond (ex: sur-régime ou sous-régime total)
+    // -> On garde le rapport actuel par sécurité
+    if (validGears.length === 0) return state.gear;
+
+    // Cas 2 : Un seul rapport correspond
+    // -> C'est facile, on le prend
+    if (validGears.length === 1) return validGears[0];
+
+    // Cas 3 : Plusieurs rapports se chevauchent (ex: à 40km/h on peut être en 2 ou 3)
+    // -> HYSTÉRÉSIS : Si le rapport actuel fait partie des choix valides, on le garde !
+    // Cela évite que l'appli change de vitesse inutilement.
+    if (validGears.includes(state.gear)) {
+        return state.gear;
+    }
+
+    // Cas 4 : Chevauchement, mais on n'est pas dans un des rapports valides
+    // -> On prend le plus élevé des valides (conduite éco) ou le plus proche (selon préférence)
+    // Ici, je prends le rapport le plus élevé possible parmi les valides (tendance éco)
+    return Math.max(...validGears);
 }
 
 // --- UI UPDATES ---
@@ -160,6 +241,17 @@ function updateGpsStatus(active) {
         els.gpsDot.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-colors duration-500 animate-pulse";
         els.gpsText.textContent = "RECHERCHE GPS...";
         els.gpsText.className = "text-xs font-bold tracking-widest text-red-400 uppercase";
+    }
+    // Gestion de l'affichage du rapport (Chiffre ou "N")
+    els.gearValue.textContent = state.gear;
+    
+    // Changement de couleur si on est en Neutre
+    if (state.gear === 'N') {
+        els.gearValue.classList.add('text-emerald-400'); // Vert pour le neutre
+        els.gearValue.classList.remove('text-white');
+    } else {
+        els.gearValue.classList.add('text-white');
+        els.gearValue.classList.remove('text-emerald-400');
     }
 }
 
