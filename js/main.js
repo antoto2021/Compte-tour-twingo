@@ -84,26 +84,31 @@ function handleGpsSuccess(pos) {
         if (state.rpm < 800) state.rpm = 800 + (Math.floor(Math.random() * 20));
     }
 
-    // 6. LOGIQUE D'ENREGISTREMENT (TRAJET)
+        // 6. LOGIQUE D'ENREGISTREMENT (CORRIGÉE)
     if (state.isRecording) {
-        // Calcul du temps écoulé depuis la dernière frame GPS (pour la distance)
+        // Calcul du temps écoulé depuis la dernière mise à jour GPS
         const timeDelta = now - state.lastGpsTime; // en ms
         
-        // Si le GPS a sauté ou pause trop longue (>5s), on ignore ce segment pour la distance
-        if (timeDelta > 0 && timeDelta < 5000) {
-            // Distance = Vitesse (m/s) * Temps (s)
-            // state.speed est en km/h, donc /3.6 pour avoir m/s
-            const distSeg = (state.speed / 3.6) * (timeDelta / 1000);
+        // On accepte un délai max de 2 secondes entre deux points pour éviter les bugs
+        if (timeDelta > 0 && timeDelta < 2000) {
+            // Distance (mètres) = Vitesse (m/s) * Temps (secondes)
+            // state.speed est en km/h -> diviser par 3.6 pour m/s
+            const speedMs = state.speed / 3.6;
+            const distSeg = speedMs * (timeDelta / 1000);
             
+            // On ajoute à la distance totale
             state.currentTrip.distanceMeters += distSeg;
         }
 
-        // Mise à jour visuelle du compteur (Affiche la distance en cours au lieu du nombre de points)
+        // MISE À JOUR VISUELLE IMMÉDIATE
         const distKm = (state.currentTrip.distanceMeters / 1000).toFixed(2);
         els.pointsCount.textContent = distKm + " km";
     }
-    
-    // 7. Mise à jour finale de l'affichage (Compteur, Jauge, etc.)
+
+    // On met à jour le temps GPS pour le prochain calcul
+    state.lastGpsTime = now;
+
+    // 7. Mise à jour finale
     updateDashboard();
 }
 
