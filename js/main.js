@@ -1,7 +1,7 @@
 // POINT D'ENTRÉE PRINCIPAL
 import { state, setState, loadSavedState } from './state.js';
 import { SMOOTHING_FACTOR, DEFAULT_RATIOS } from './config.js';
-import { determineGear, calculateRpm } from './logic.js';
+import { determineGear, calculateRpm, updateDrivingMode } from './logic.js';
 import { els, updateDashboard, renderHistory, renderSettingsInputs, updateGpsStatus, updateLocalInfoDisplay } from './ui.js';
 import { checkGitHubUpdates, forceUpdate } from './updater.js';
 
@@ -37,39 +37,56 @@ function init() {
 
 // --- LOGIQUE GPS ---
 function handleGpsSuccess(pos) {
+    // 1. Activation initiale du statut GPS
     if (!state.gpsActive) {
         setState('gpsActive', true);
         updateGpsStatus(true);
     }
 
+    // 2. Récupération des données brutes
     let speedMs = pos.coords.speed;
     if (speedMs === null || speedMs < 0) speedMs = 0;
     const rawKmh = speedMs * 3.6;
+    
+    // IMPORTANT : On capture l'heure actuelle pour le calcul d'accélération et l'enregistrement
+    const now = Date.now(); 
 
-    // Lissage
+    // 3. Lissage de la vitesse (éviter les sauts)
     if (state.speed === 0 || Math.abs(state.speed - rawKmh) > 20) {
+        // Si c'est le début ou s'il y a un écart énorme (tunnel sortie), on prend la valeur brute
         state.speed = rawKmh;
     } else {
+        // Sinon moyenne pondérée
         state.speed = (rawKmh * SMOOTHING_FACTOR) + (state.speed * (1 - SMOOTHING_FACTOR));
     }
 
-    // Ralenti vs Roulage
+    // 4. MISE À JOUR DU MODE DE CONDUITE (ECO vs SPORT)
+    // C'est ici qu'on vérifie l'accélération grâce au temps 'now'
+    updateDrivingMode(state.speed, now);
+
+    // 5. Calcul du Rapport et RPM
     if (state.speed < 3) {
+        // --- CAS 1 : ARRÊT / RALENTI ---
         state.gear = 'N';
+        
+        // Simulation d'un ralenti vivant (oscillation autour de 800tr/min)
         const idleBase = 800;
         const variation = Math.floor(Math.random() * 40) - 20;
         state.rpm = idleBase + variation;
+
     } else {
+        // --- CAS 2 : ROULAGE ---
+        // determineGear utilise maintenant le mode (Eco/Sport) mis à jour juste avant
         state.gear = determineGear(state.speed);
         state.rpm = calculateRpm(state.speed, state.gear);
         
-        // Sécurité chute de régime
+        // Sécurité visuelle : ne pas descendre sous 800tr/min si on roule
         if (state.rpm < 800) state.rpm = 800 + (Math.floor(Math.random() * 20));
     }
 
-    // Enregistrement
+    // 6. Enregistrement des données (si activé)
     if (state.isRecording) {
-        const now = Date.now();
+        // On enregistre maximum 1 point par seconde
         if (now - state.lastRecordTime > 1000) {
             const point = {
                 id: now,
@@ -80,17 +97,25 @@ function handleGpsSuccess(pos) {
                 lat: pos.coords.latitude.toFixed(5),
                 lon: pos.coords.longitude.toFixed(5)
             };
+            
+            // Ajout au début du tableau
             state.tripData.unshift(point);
             state.lastRecordTime = now;
+            
+            // Sauvegarde locale
             localStorage.setItem('twingo_trip_history', JSON.stringify(state.tripData));
             
+            // Mise à jour compteur UI
             els.pointsCount.textContent = state.tripData.length;
+            
+            // Si l'onglet historique est ouvert, on rafraîchit la liste
             if (!document.getElementById('view-history').classList.contains('hidden')) {
                 renderHistory();
             }
         }
     }
 
+    // 7. Mise à jour finale de l'affichage (Compteur, Jauge, etc.)
     updateDashboard();
 }
 
