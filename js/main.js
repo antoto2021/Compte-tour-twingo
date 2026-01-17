@@ -84,37 +84,25 @@ function handleGpsSuccess(pos) {
         if (state.rpm < 800) state.rpm = 800 + (Math.floor(Math.random() * 20));
     }
 
-    // 6. Enregistrement des données (si activé)
+    // 6. LOGIQUE D'ENREGISTREMENT (TRAJET)
     if (state.isRecording) {
-        // On enregistre maximum 1 point par seconde
-        if (now - state.lastRecordTime > 1000) {
-            const point = {
-                id: now,
-                time: new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
-                speed: Math.round(state.speed),
-                rpm: state.rpm,
-                gear: state.gear,
-                lat: pos.coords.latitude.toFixed(5),
-                lon: pos.coords.longitude.toFixed(5)
-            };
+        // Calcul du temps écoulé depuis la dernière frame GPS (pour la distance)
+        const timeDelta = now - state.lastGpsTime; // en ms
+        
+        // Si le GPS a sauté ou pause trop longue (>5s), on ignore ce segment pour la distance
+        if (timeDelta > 0 && timeDelta < 5000) {
+            // Distance = Vitesse (m/s) * Temps (s)
+            // state.speed est en km/h, donc /3.6 pour avoir m/s
+            const distSeg = (state.speed / 3.6) * (timeDelta / 1000);
             
-            // Ajout au début du tableau
-            state.tripData.unshift(point);
-            state.lastRecordTime = now;
-            
-            // Sauvegarde locale
-            localStorage.setItem('twingo_trip_history', JSON.stringify(state.tripData));
-            
-            // Mise à jour compteur UI
-            els.pointsCount.textContent = state.tripData.length;
-            
-            // Si l'onglet historique est ouvert, on rafraîchit la liste
-            if (!document.getElementById('view-history').classList.contains('hidden')) {
-                renderHistory();
-            }
+            state.currentTrip.distanceMeters += distSeg;
         }
-    }
 
+        // Mise à jour visuelle du compteur (Affiche la distance en cours au lieu du nombre de points)
+        const distKm = (state.currentTrip.distanceMeters / 1000).toFixed(2);
+        els.pointsCount.textContent = distKm + " km";
+    }
+    
     // 7. Mise à jour finale de l'affichage (Compteur, Jauge, etc.)
     updateDashboard();
 }
@@ -130,12 +118,54 @@ function handleGpsError(err) {
 window.toggleRecording = function() {
     state.isRecording = !state.isRecording;
     const btn = els.recordBtn;
+
     if (state.isRecording) {
+        // --- DÉMARRAGE ENREGISTREMENT ---
         btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-red-500 text-white shadow-lg shadow-red-500/30 active:scale-95 animate-pulse";
         btn.innerHTML = `<i data-lucide="square" class="w-4 h-4 fill-current"></i><span>STOP</span>`;
+        
+        // Init nouveau trajet
+        state.currentTrip = {
+            startTime: Date.now(),
+            distanceMeters: 0,
+            startCoords: null // Optionnel
+        };
+        els.pointsCount.textContent = "0.00 km";
+
     } else {
+        // --- ARRÊT ENREGISTREMENT & SAUVEGARDE ---
         btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95";
         btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i><span>REC</span>`;
+        
+        // Finalisation du trajet
+        const endTime = Date.now();
+        const duration = endTime - state.currentTrip.startTime;
+        
+        // On ne sauvegarde que si le trajet fait plus de 10 mètres ou 10 secondes (anti faux-clic)
+        if (state.currentTrip.distanceMeters > 10 || duration > 10000) {
+            
+            // Calcul Vitesse Moyenne : V = D / T
+            // D en km, T en heures
+            const distKm = state.currentTrip.distanceMeters / 1000;
+            const hours = duration / 1000 / 3600;
+            const avgSpeed = hours > 0 ? Math.round(distKm / hours) : 0;
+
+            const newTrip = {
+                id: endTime,
+                date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
+                startTimeStr: new Date(state.currentTrip.startTime).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}),
+                duration: duration, // en ms
+                distance: state.currentTrip.distanceMeters, // en m
+                avgSpeed: avgSpeed // km/h
+            };
+
+            state.tripData.unshift(newTrip);
+            localStorage.setItem('twingo_trips_log', JSON.stringify(state.tripData));
+            
+            if (!document.getElementById('view-history').classList.contains('hidden')) {
+                renderHistory();
+            }
+        }
     }
     lucide.createIcons();
 };
@@ -207,11 +237,11 @@ window.resetRatios = function() {
 };
 
 window.clearHistory = function() {
-    if (confirm("Supprimer tout l'historique ?")) {
+    if (confirm("Supprimer tout l'historique des trajets ?")) {
         state.tripData = [];
-        localStorage.setItem('twingo_trip_history', JSON.stringify([]));
+        localStorage.setItem('twingo_trips_log', JSON.stringify([])); // Nouvelle clé
         renderHistory();
-        els.pointsCount.textContent = 0;
+        els.pointsCount.textContent = "0";
     }
 };
 
