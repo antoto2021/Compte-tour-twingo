@@ -1,6 +1,7 @@
 // LOGIQUE MÉTIER (Calculs purs)
-import { state } from './state.js';
-import { GEAR_LIMITS } from './config.js';
+import { state, setState } from './state.js';
+// CORRECTION ICI : On n'importe plus GEAR_LIMITS, mais les versions ECO et SPORT
+import { GEAR_LIMITS_ECO, GEAR_LIMITS_SPORT, ACCELERATION_THRESHOLD, SPORT_MODE_DURATION } from './config.js';
 
 // Fonction principale pour mettre à jour le mode de conduite
 export function updateDrivingMode(currentSpeed, now) {
@@ -36,7 +37,7 @@ export function determineGear(speed) {
     // Sécurité arrêt
     if (speed < 5) return 1;
 
-    // CHOIX DU PROFILselon le mode actif
+    // CHOIX DU PROFIL selon le mode actif
     const currentLimits = (state.mode === 'SPORT') ? GEAR_LIMITS_SPORT : GEAR_LIMITS_ECO;
 
     let validGears = [];
@@ -46,17 +47,20 @@ export function determineGear(speed) {
         if (!ratio) continue;
 
         const testRpm = (speed * 1000) / ratio;
-        const limits = currentLimits[g]; // On utilise le profil sélectionné
+        
+        // On utilise le profil sélectionné (currentLimits)
+        const limits = currentLimits[g]; 
         
         if (limits && testRpm >= limits.min && testRpm <= limits.max) {
             validGears.push(g);
         }
     }
 
-    // Décision (inchangée)
+    // Décision
     if (validGears.length === 0) return state.gear;
     if (validGears.length === 1) return validGears[0];
-    if (validGears.includes(state.gear)) return state.gear;
+    // Hystérésis : Si le rapport actuel fait partie des choix valides, on le garde
+    if (validGears.includes(state.gear)) return state.gear; 
     
     return Math.max(...validGears);
 }
