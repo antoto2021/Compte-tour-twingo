@@ -125,49 +125,55 @@ window.toggleRecording = function() {
     const btn = els.recordBtn;
 
     if (state.isRecording) {
-        // --- DÉMARRAGE ENREGISTREMENT ---
+        // --- DÉMARRAGE ---
         btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-red-500 text-white shadow-lg shadow-red-500/30 active:scale-95 animate-pulse";
         btn.innerHTML = `<i data-lucide="square" class="w-4 h-4 fill-current"></i><span>STOP</span>`;
         
-        // Init nouveau trajet
+        // RESET COMPLET DU TRAJET
         state.currentTrip = {
             startTime: Date.now(),
             distanceMeters: 0,
-            startCoords: null // Optionnel
+            samples: 0
         };
         els.pointsCount.textContent = "0.00 km";
 
     } else {
-        // --- ARRÊT ENREGISTREMENT & SAUVEGARDE ---
+        // --- ARRÊT ---
         btn.className = "flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95";
         btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i><span>REC</span>`;
         
-        // Finalisation du trajet
         const endTime = Date.now();
         const duration = endTime - state.currentTrip.startTime;
         
-        // On ne sauvegarde que si le trajet fait plus de 10 mètres ou 10 secondes (anti faux-clic)
-        if (state.currentTrip.distanceMeters > 10 || duration > 10000) {
+        // On sauvegarde si > 10 mètres OU > 5 secondes (pour les tests)
+        if (state.currentTrip.distanceMeters > 10 || duration > 5000) {
             
-            // Calcul Vitesse Moyenne : V = D / T
-            // D en km, T en heures
             const distKm = state.currentTrip.distanceMeters / 1000;
-            const hours = duration / 1000 / 3600;
-            const avgSpeed = hours > 0 ? Math.round(distKm / hours) : 0;
+            // Durée en heures pour le calcul de vitesse
+            const durationHours = duration / 1000 / 3600; 
+            
+            // Calcul vitesse moyenne (protection division par zéro)
+            let avgSpeed = 0;
+            if (durationHours > 0) {
+                avgSpeed = Math.round(distKm / durationHours);
+            }
 
             const newTrip = {
                 id: endTime,
                 date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
                 startTimeStr: new Date(state.currentTrip.startTime).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'}),
-                duration: duration, // en ms
-                distance: state.currentTrip.distanceMeters, // en m
-                avgSpeed: avgSpeed // km/h
+                duration: duration, 
+                distance: state.currentTrip.distanceMeters,
+                avgSpeed: avgSpeed
             };
 
+            // Ajout à l'historique et sauvegarde
             state.tripData.unshift(newTrip);
             localStorage.setItem('twingo_trips_log', JSON.stringify(state.tripData));
             
-            if (!document.getElementById('view-history').classList.contains('hidden')) {
+            // Si on est sur l'onglet historique, on rafraîchit
+            const historyView = document.getElementById('view-history');
+            if (historyView && !historyView.classList.contains('hidden')) {
                 renderHistory();
             }
         }
