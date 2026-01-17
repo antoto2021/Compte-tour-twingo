@@ -81,16 +81,46 @@ export function updateGpsStatus(active) {
     }
 }
 
+// Fonction utilitaire pour formater la durée
+function formatDuration(ms) {
+    const totalMinutes = Math.floor(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${minutes < 10 ? '0' : ''}${minutes}`; // ex: 1h 05
+    }
+    return `${minutes} min`; // ex: 45 min
+}
+
 export function renderHistory() {
     if (state.tripData.length === 0) {
         els.historyList.innerHTML = `
             <div class="text-center py-20 text-slate-600">
-                <i data-lucide="activity" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
-                <p class="text-sm">Aucune donnée.</p>
+                <i data-lucide="map" class="w-12 h-12 mx-auto mb-4 opacity-20"></i>
+                <p class="text-sm">Aucun trajet enregistré.</p>
             </div>`;
         lucide.createIcons();
         return;
     }
+
+    const html = state.tripData.map(trip => `
+        <div class="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-xl text-sm text-center items-center hover:bg-white/10 transition-colors border border-white/5">
+            <div class="flex flex-col">
+                <span class="text-white font-bold text-xs">${trip.date}</span>
+                <span class="text-slate-500 text-[9px]">${trip.startTimeStr}</span>
+            </div>
+            
+            <div class="text-slate-300 font-mono text-xs">${formatDuration(trip.duration)}</div>
+            
+            <div class="font-bold text-white text-xs">${(trip.distance / 1000).toFixed(1)} km</div>
+            
+            <div class="font-bold text-emerald-400 text-xs">${trip.avgSpeed}</div>
+        </div>
+    `).join('');
+    
+    els.historyList.innerHTML = html;
+}
 
     const html = state.tripData.map(pt => `
         <div class="grid grid-cols-4 gap-2 py-3 px-2 bg-white/5 rounded-xl text-sm text-center items-center hover:bg-white/10 transition-colors border border-white/5">
